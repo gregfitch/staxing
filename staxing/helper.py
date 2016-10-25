@@ -31,7 +31,7 @@ try:
 except ImportError:
     from page_load import SeleniumWait as Page
 
-__version__ = '0.0.26'
+__version__ = '0.0.28'
 
 
 class Helper(object):
@@ -764,7 +764,7 @@ class Teacher(User):
 
     def get_month_year(self):
         """Break a date string into a month year tuple."""
-        calendar_heading = WebDriverWait(self.driver, 2).until(
+        calendar_heading = WebDriverWait(self.driver, 3).until(
             expect.visibility_of_element_located(
                 (By.XPATH,
                  '//div[contains(@class,"calendar-header-label")]/span')
