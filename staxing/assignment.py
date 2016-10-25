@@ -13,6 +13,10 @@ from selenium.webdriver.support import expected_conditions as expect
 from selenium.webdriver.support.ui import WebDriverWait
 
 __version__ = '0.0.29'
+try:
+    from staxing.page_load import SeleniumWait as Page
+except ImportError:
+    from page_load import SeleniumWait as Page
 
 
 class Assignment(object):
@@ -199,7 +203,7 @@ class Assignment(object):
     def rword(cls, length):
         """Return a <length>-character random string."""
         return ''.join(random.choice(string.ascii_lowercase)
-                       for i in range(length))
+                       for _ in range(length))
 
     @classmethod
     def scroll_to(cls, driver, element):
@@ -212,7 +216,7 @@ class Assignment(object):
         """Send data to an element using javascript."""
         Assignment.scroll_to(driver, element)
         element.clear()
-        time.sleep(0.5)
+        time.sleep(0.3)
         for ch in text:
             element.send_keys(ch)
 
@@ -458,12 +462,12 @@ class Assignment(object):
                 time.sleep(0.5)
                 wait = WebDriverWait(driver, Assignment.WAIT_TIME)
                 marked = wait.until(
-                    expect.visibility_of_element_located(
-                        (By.XPATH,
-                         ('//span[contains(@data-chapter-section' +
-                          ',"{s}") and text()="{s}"]').format(s=section) +
-                         '/preceding-sibling::span/input')
-                    )
+                    expect.visibility_of_element_located((
+                        By.XPATH,
+                        ('//span[contains(@data-chapter-section' +
+                         ',"{0}") and text()="{0}"]').format(section) +
+                        '/preceding-sibling::span/input'
+                    ))
                 )
                 if not marked.is_selected():
                     marked.click()
@@ -876,21 +880,88 @@ class Assignment(object):
     def delete_reading(self, driver, title, description, periods, readings,
                        status):
         """Delete a reading assignment."""
-        raise NotImplementedError(inspect.currentframe().f_code.co_name)
+        # raise NotImplementedError(inspect.currentframe().f_code.co_name)
+        wait = WebDriverWait(driver, Assignment.WAIT_TIME * 4)
+        wait.until(
+            expect.visibility_of_element_located(
+                (By.XPATH, '//ul/a[contains(@class,"navbar-brand")]')
+            )
+        ).click()
+        due_date = ''
+        for period in periods:
+            _, due_date = periods[period]
+            break
+        url = driver.current_url.split('/')
+        date = due_date.split('/')
+        temp = []
+        temp.append(date[2])
+        temp.append(date[0])
+        temp.append(date[1])
+        date = '-'.join(temp)
+        url[-2] = date
+        url = '/'.join(url)
+        driver.get(url)
+        page = Page(driver, Assignment.WAIT_TIME)
+        page.wait_for_page_load()
+        wait.until(
+            expect.presence_of_element_located(
+                (By.XPATH, '//a[label[text()="%s"]]' % title)
+            )
+        ).click()
+        time.sleep(0.3)
+        try:
+            modal = driver.find_element(By.CLASS_NAME, '-edit-assignment')
+            Assignment.scroll_to(driver, modal)
+            modal.click()
+        except:
+            pass
+        page.wait_for_page_load()
+        wait.until(
+            expect.presence_of_element_located(
+                (By.CLASS_NAME, 'delete-link')
+            )
+        ).click()
+        wait.until(
+            expect.presence_of_element_located(
+                (By.XPATH, '//div[@class="controls"]/button[text()="Yes"]')
+            )
+        ).click()
+        page.wait_for_page_load()
 
     def delete_homework(self, driver, title, description, periods, problems,
                         status):
         """Delete a homework assignment."""
-        raise NotImplementedError(inspect.currentframe().f_code.co_name)
+        self.remove[Assignment.READING](
+            driver=driver,
+            title=title,
+            description=None,
+            periods=periods,
+            problems=None,
+            status=None
+        )
 
     def delete_external(self, driver, title, description, periods,
                         assignment_url, status):
         """Delete an external assignment."""
-        raise NotImplementedError(inspect.currentframe().f_code.co_name)
+        self.remove[Assignment.READING](
+            driver=driver,
+            title=title,
+            description=None,
+            periods=periods,
+            problems=None,
+            status=None
+        )
 
     def delete_event(self, driver, title, description, periods, status):
         """Delete an event."""
-        raise NotImplementedError(inspect.currentframe().f_code.co_name)
+        self.remove[Assignment.READING](
+            driver=driver,
+            title=title,
+            description=None,
+            periods=periods,
+            problems=None,
+            status=None
+        )
 
 
 if __name__ == '__main__':
