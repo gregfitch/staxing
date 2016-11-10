@@ -306,8 +306,9 @@ class Assignment(object):
         self.adjust_date_picker(driver, date_element, change)
         driver.find_element(
             By.XPATH,
-            '//div[contains(@class,"datepicker__day") and text()="%s"]' %
-            change.day
+            '//div[contains(@class,"datepicker__day") ' +
+            'and not(contains(@class,"disabled")) ' +
+            'and text()="%s"]' % change.day
         ).click()
 
     def assign_periods(self, driver, periods):
@@ -436,7 +437,7 @@ class Assignment(object):
         """Open the reading chapter list."""
         data_chapter = driver.find_element(
             By.XPATH,
-            '//h2[contains(@data-chapter-section,"%s")]/a' % chapter
+            '//div[@data-chapter-section="%s"]/a' % chapter
         )
         if (data_chapter.get_attribute('aria-expanded')) == 'false':
             data_chapter.click()
@@ -448,7 +449,7 @@ class Assignment(object):
                 print('Adding chapter: ' + section)
                 chapter = driver.find_element(
                     By.XPATH,
-                    '//h2[@data-chapter-section="%s"]' % section[2:] +
+                    '//div[@data-chapter-section="%s"]' % section[2:] +
                     '//i[contains(@class,"tutor-icon")]'
                 )
                 time.sleep(0.5)
