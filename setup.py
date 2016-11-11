@@ -9,7 +9,7 @@ reqs = [str(ir.req) for ir in install_reqs]
 
 setup(
     name='Staxing',
-    version='0.0.35',
+    version='0.0.36',
     packages=find_packages(),
     scripts=[],
     # zip_safe=True,
@@ -33,7 +33,7 @@ setup(
     description='Stax test base',
     license='Creative Commons Attribution 4.0 International Public License',
     keywords='',
-    url='https://github.com/gregfitch/staxing',
+    url='https://github.com/openstax/staxing',
     long_description=open('README.md').read(),
     # test_suite=''
     # tests_require=[],
