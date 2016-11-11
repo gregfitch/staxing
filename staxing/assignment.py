@@ -528,7 +528,7 @@ class Assignment(object):
                             '//button[text()="Add Readings"]').click()
         wait.until(
             expect.visibility_of_element_located(
-                (By.XPATH, '//span[text()="Publish"]')
+                (By.XPATH, '//button[contains(@class,"-publish")]')
             )
         )
         if break_point == Assignment.BEFORE_STATUS_SELECT:
@@ -789,7 +789,7 @@ class Assignment(object):
         driver.find_element(By.ID, 'external-url').send_keys(assignment_url)
         wait.until(
             expect.visibility_of_element_located(
-                (By.XPATH, '//span[text()="Publish"]')
+                (By.XPATH, '//button[contains(@class,"-publish")]')
             )
         )
         if break_point == Assignment.BEFORE_STATUS_SELECT:
@@ -834,7 +834,7 @@ class Assignment(object):
         self.assign_periods(driver, periods)
         wait.until(
             expect.visibility_of_element_located(
-                (By.XPATH, '//span[text()="Publish"]')
+                (By.XPATH, '//button[contains(@class,"-publish")]')
             )
         )
         if break_point == Assignment.BEFORE_STATUS_SELECT:
