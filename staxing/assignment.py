@@ -243,10 +243,15 @@ class Assignment(object):
             return
         months = {v: k for k, v in enumerate(calendar.month_name)}
 
-        previous_month = driver.find_element(
+        # previoux month arrow not always available must check if it is there
+        previous_month = driver.find_elements(
             By.CLASS_NAME,
             'datepicker__navigation--previous'
         )
+        if previous_month.length != 0:
+            previous_month = previous_month[0]
+        else:          # if no previous month arrow, errors if attmpt to click
+            previous_month = None
         next_month = driver.find_element(
             By.CLASS_NAME,
             'datepicker__navigation--next'
