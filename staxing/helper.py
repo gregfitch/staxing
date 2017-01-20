@@ -31,7 +31,7 @@ try:
 except ImportError:
     from page_load import SeleniumWait as Page
 
-__version__ = '0.0.29'
+__version__ = '0.0.31'
 
 
 class Helper(object):
@@ -319,6 +319,22 @@ class User(Helper):
                                    existing_driver=existing_driver,
                                    **kwargs)
 
+    def accept_contract(self):
+        """
+        Contract acceptance for Terms of Service and the Privacy Policy.
+        """
+        checkbox_id = 'agreement_i_agree' if 'accounts' in \
+            self.driver.current_url else 'i_agree'
+        try:
+            target = self.driver.find_element(By.ID, checkbox_id)
+            Assignment.scroll_to(self.driver, target)
+            target.click()
+            target = self.driver.find_element(By.ID, 'agreement_submit')
+            Assignment.scroll_to(self.driver, target)
+            target.click()
+        except Exception as e:
+            raise e
+
     def login(self, url=None, username=None, password=None):
         """
         Tutor login control.
@@ -341,15 +357,22 @@ class User(Helper):
             if self.driver.get_window_size()['width'] <= self.CONDENSED_WIDTH:
                 # get small-window menu toggle
                 is_collapsed = self.driver.find_element(
-                    By.XPATH,
-                    '//button[contains(@class,"navbar-toggle")]'
+                    By.CSS_SELECTOR,
+                    'button.navbar-toggle'
                 )
                 # check if the menu is collapsed and, if yes, open it
-                if('collapsed' in is_collapsed.get_attribute('class')):
+                try:
+                    WebDriverWait(self.driver, 2).until(
+                        expect.visibility_of_element_located(
+                            By.XPATH,
+                            '//a[contains(@href,"/accounts/login")]'
+                        )
+                    )
+                except:  # closed menu,
                     is_collapsed.click()
             self.wait.until(
                 expect.visibility_of_element_located(
-                    (By.LINK_TEXT, 'Login')
+                    (By.LINK_TEXT, 'Log in')
                 )
             ).click()
             self.page.wait_for_page_load()
@@ -360,18 +383,22 @@ class User(Helper):
         text_located = re.search(r'openstax', src.lower())
         self.sleep(1)
         if not text_located:
-            raise self.LoginError('Non-OpenStax URL: %s' %
-                                  self.driver.current_url)
+            raise self.LoginError(
+                'Non-OpenStax URL: %s' % self.driver.current_url
+            )
         # enter the username and password
-        self.driver.find_element(By.ID, 'auth_key').send_keys(username)
-        self.driver.find_element(By.ID, 'password').send_keys(password)
+        self.driver.find_element(By.ID, 'login_username_or_email') \
+            .send_keys(username)
+        self.driver.find_element(By.XPATH, '//input[@value="Next"]') \
+            .click()
+        self.driver.find_element(By.ID, 'login_password') \
+            .send_keys(password)
         # click on the sign in button
-        self.driver.find_element(
-            By.XPATH, '//button[text()="Sign in"]'
-        ).click()
+        self.driver.find_element(By.XPATH, '//input[@value="Login"]') \
+            .click()
         self.page.wait_for_page_load()
         # check if a password change is required
-        if 'Reset Password' in self.driver.page_source:
+        if 'reset your password' in self.driver.page_source.lower():
             try:
                 self.driver.find_element(
                     By.ID,
@@ -383,25 +410,22 @@ class User(Helper):
                 ).send_keys(self.password)
                 self.driver.find_element(
                     By.XPATH,
-                    '//input[@value="Set Password"]'
+                    '//input[@value="Reset Password"]'
+                ).click()
+                self.sleep(1)
+                self.driver.find_element(
+                    By.XPATH,
+                    '//input[@value="Continue"]'
                 ).click()
             except Exception as e:
                 raise e
         self.page.wait_for_page_load()
-        if 'Terms of Use' in self.driver.page_source:
-            try:
-                self.driver.find_element(By.ID, 'i_agree').click()
-                self.driver.find_element(By.ID, 'agreement_submit').click()
-            except Exception as e:
-                raise e
-        self.page.wait_for_page_load()
-        if 'Privacy Policy' in self.driver.page_source:
-            try:
-                self.driver.find_element(By.ID, 'i_agree').click()
-                self.driver.find_element(By.ID, 'agreement_submit').click()
-            except Exception as e:
-                raise e
-        self.page.wait_for_page_load()
+        source = self.driver.page_source.lower()
+        print('Reached Terms/Privacy')
+        while 'terms of use' in source or 'privacy policy' in source:
+            self.accept_contract()
+            self.page.wait_for_page_load()
+            source = self.driver.page_source.lower()
 
     def logout(self):
         """Logout control."""
@@ -424,7 +448,7 @@ class User(Helper):
         try:
             self.wait.until(
                 expect.presence_of_element_located(
-                    (By.ID, 'react-root-container')
+                    (By.ID, 'ox-react-root-container')
                 )
             )
             if 'tutor' in self.driver.current_url:
@@ -437,6 +461,17 @@ class User(Helper):
                                 '%s' % self.driver.current_url)
         except Exception as ex:
             raise ex
+
+    def get_course_list(self, closed=False):
+        """Return a list of available courses."""
+        courses = self.driver.find_elements(
+            By.CSS_SELECTOR,
+            'div.course-listing-current-section' + ' ' +
+            'div.course-listing-item'
+        )
+        for a, x in enumerate(courses):
+            print('%s : %s' % (a, x.get_attribute('data-title')))
+        return courses
 
     def open_user_menu(self):
         """
@@ -469,7 +504,7 @@ class User(Helper):
 
     def accounts_logout(self):  # NOQA
         """OS Accounts logout helper."""
-        self.driver.find_element(By.LINK_TEXT, 'Sign out').click()
+        self.driver.find_element(By.LINK_TEXT, 'Log out').click()
         self.page.wait_for_page_load()
 
     def execises_logout(self):  # NOQA
@@ -505,18 +540,21 @@ class User(Helper):
             course = title
         elif appearance:
             uses_option = 'appearance'
-            course = appearance.lower()
+            course = appearance
         else:
             raise self.LoginError('Unknown course selection "%s"' %
                                   title if title else appearance)
-        self.wait.until(
+        select = self.wait.until(
             expect.element_to_be_clickable(
                 (
                     By.XPATH, '//div[@data-%s="%s"]//a' %
                     (uses_option, course)
                 )
             )
-        ).click()
+        )
+        print('Course: %s - %s' % (title if title else appearance,
+                                   select.get_attribute('href')))
+        select.click()
         self.page.wait_for_page_load()
 
     def view_reference_book(self):
