@@ -246,11 +246,11 @@ class Assignment(object):
 
         next_month = driver.find_element(
             By.CLASS_NAME,
-            'datepicker__navigation--next'
+            'react-datepicker__navigation--next'
         )
         current = driver.find_element(
             By.CLASS_NAME,
-            'datepicker__current-month'
+            'react-datepicker__current-month'
         )
         month, year = current.text.split(' ')
         month = months[month]
@@ -260,7 +260,7 @@ class Assignment(object):
             next_month.click()
             current = driver.find_element(
                 By.CLASS_NAME,
-                'datepicker__current-month'
+                'react-datepicker__current-month'
             )
             month, year = current.text.split(' ')
             month = months[month]
@@ -271,12 +271,12 @@ class Assignment(object):
             # arrow inside the while loop
             previous_month = driver.find_element(
                 By.CLASS_NAME,
-                'datepicker__navigation--previous'
+                'react-datepicker__navigation--previous'
             )
             previous_month.click()
             current = driver.find_element(
                 By.CLASS_NAME,
-                'datepicker__current-month'
+                'react-datepicker__current-month'
             )
             month, year = current.text.split(' ')
             month = months[month]
@@ -300,7 +300,7 @@ class Assignment(object):
         start = option if option else driver
         path = '../..' if not is_all else ''
         path += '//div[contains(@class,"-%s-date")]' % target
-        path += '//div[contains(@class,"datepicker__input")]//input'
+        path += '//div[contains(@class,"react-datepicker__input")]//input'
         date_element = start.find_element(By.XPATH, path)
         # get calendar to correct month
         split = date.split('/')
@@ -309,7 +309,7 @@ class Assignment(object):
         self.adjust_date_picker(driver, date_element, change)
         driver.find_element(
             By.XPATH,
-            '//div[contains(@class,"datepicker__day") ' +
+            '//div[contains(@class,"react-datepicker__day") ' +
             'and not(contains(@class,"disabled")) ' +
             'and text()="%s"]' % change.day
         ).click()
@@ -950,43 +950,56 @@ if __name__ == '__main__':
     import os
     from selenium import webdriver
 
+    print('Start Chrome instance')
     driver = webdriver.Chrome()
+    print('Set window size')
     driver.set_window_size(1300, 768)
+    print('Open Tutor QA')
     driver.get('https://tutor-qa.openstax.org/')
-    driver.find_element(By.LINK_TEXT, 'Login').click()
-    driver.find_element(By.ID, 'auth_key'). \
+    print('Log in')
+    driver.find_element(By.LINK_TEXT, 'Log in').click()
+    driver.find_element(By.ID, 'login_username_or_email'). \
         send_keys(os.getenv('TEACHER_USER'))
-    driver.find_element(By.ID, 'password'). \
+    driver.find_element(By.CSS_SELECTOR, 'input.primary').click()
+    driver.find_element(By.ID, 'login_password'). \
         send_keys(os.getenv('TEACHER_PASSWORD'))
-    driver.find_element(
-            By.XPATH, '//button[text()="Sign in"]'
-        ).click()
+    driver.find_element(By.CSS_SELECTOR, 'input.primary').click()
+    print('Select a course')
     WebDriverWait(driver, 20).until(
             expect.element_to_be_clickable(
                 (
                     By.XPATH, '//div[@data-%s="%s"]//a' %
-                    ('title', 'HS Physics')
+                    ('title', 'Physics with Courseware Review --KAJAL')
                 )
             )
         ).click()
-    driver.find_element(
-            By.XPATH,
-            '//button[contains(@class,"dropdown-toggle")]'
-        ).click()
+    print('Open assignment menu')
+    assignment_menu = driver.find_element(
+        By.CSS_SELECTOR, 'button.sidebar-toggle')
+    color = assignment_menu.value_of_css_property('background-color')
+    if not color.lower() == 'rgba(153, 153, 153, 1)':
+        # background isn't gray so the toggle is still closed
+        assignment_menu.click()
     time.sleep(0.5)
+    print('Add a new reading')
     driver.find_element(By.LINK_TEXT, 'Add Reading').click()
+    print('Test date/time options')
     test_periods = {
-        '1st': ('9/10/2016', '9/15/2016'),
-        '2nd': ('9/12/2016', '9/17/2016'),
-        '3rd': (('9/14/2016', '4:00 am'), '9/19/2016'),
-        'all': ('10/11/2016', '10/14/2016'),
+        '1st': ('2/10/2017', '2/15/2017'),
+        '2nd': ('2/12/2017', '2/17/2017'),
+        '3rd': (('2/14/2017', '4:00 am'), '2/19/2017'),
+        'all': ('2/11/2017', '2/14/2017'),
     }
     periods = {
-        '1st': ('9/12/2016', '9/17/2016'),
-        '2nd': (('9/14/2016', '8:00a'), ('9/19/2016', '800p')),
-        '3rd': ('9/16/2016', ('9/21/2016', '8:00 pm')),
-        'test': ('8/20/2016', '8/22/2016'),
-        'all': (('10/11/2016', '1000a'), ('10/14/2016', '1000p')),
+        '1st': ('2/12/2017', '2/17/2017'),
+        '2nd': (('2/14/2017', '8:00a'), ('2/19/2017', '800p')),
+        '3rd': ('2/16/2017', ('2/21/2017', '8:00 pm')),
+        'test': ('2/20/2017', '2/22/2017'),
+        # 'all': (('2/11/2017', '1000a'), ('2/14/2017', '1000p')),
     }
+    print('Make a reading assignment')
     assign = Assignment()
     assign.assign_periods(driver=driver, periods=periods)
+    time.sleep(5)
+    print('Close WebDriver')
+    driver.quit()
