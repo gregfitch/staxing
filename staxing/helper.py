@@ -653,14 +653,16 @@ class Teacher(User):
         print('Enter: goto_calendar')
         try:
             print('Try to return to the calendar')
-            self.find(By.XPATH, '//a[contains(@href,"calendar")]').click()
+            self.find(By.CSS_SELECTOR, 'ul.navbar-nav a.navbar-brand').click()
             print('Succeeded')
             self.page.wait_for_page_load()
         except:
             print('Failed, Try to return to the calendar using the Brand')
             try:
-                self.find(By.XPATH, '//a[contains(@class,"navbar-brand")]') \
-                    .click()
+                self.find(
+                    By.CSS_SELECTOR,
+                    'div.navbar-header a.navbar-brand'
+                ).click()
                 print('Succeeded')
                 self.page.wait_for_page_load()
             except:
@@ -744,9 +746,10 @@ class Teacher(User):
 
     def get_book_sections(self):
         """Return a list of book sections."""
+        print('Retrieve the book section list')
         self.goto_calendar()
         self.page.wait_for_page_load()
-        self.open_assignment_menu(self.driver)
+        self.assign.open_assignment_menu(self.driver)
         self.wait.until(
             expect.element_to_be_clickable(
                 (By.LINK_TEXT, 'Add Reading')
@@ -758,18 +761,20 @@ class Teacher(User):
         sleep(1.0)
         selector.click()
         self.page.wait_for_page_load()
-        for chapter in self.find_all(By.XPATH, '//a[@href="#" and span]'):
+        for chapter in self.find_all(By.CSS_SELECTOR,
+                                     'div.chapter-heading > a'):
             if chapter.get_attribute('aria-expanded') != 'true':
                 Assignment.scroll_to(self.driver, chapter)
                 sleep(0.25)
                 chapter.click()
         sections = self.find_all(
-            By.XPATH,
-            '//div[@class="section"]/span[@class="chapter-section"]'
-        )
+            By.CSS_SELECTOR, 'div.section span.chapter-section')
         section_list = []
+        section_string = ''
         for section in sections:
             section_list.append(section.text)
+            section_string += ' %s' % section.text
+        print('Section options: %s' % section_string)
         self.goto_calendar()
         return section_list
 

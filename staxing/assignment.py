@@ -223,9 +223,10 @@ class Assignment(object):
     def open_assignment_menu(self, driver):
         """Open the Add Assignment menu if it is closed."""
         assignment_menu = driver.find_element(
-            By.XPATH, '//button[contains(@class,"sidebar-toggle")]'
-        )
-        if 'open' not in assignment_menu.get_attribute('class'):
+            By.CSS_SELECTOR, 'button.sidebar-toggle')
+        color = assignment_menu.value_of_css_property('background-color')
+        if not color.lower() == 'rgba(153, 153, 153, 1)':
+            # background isn't gray so the toggle is still closed
             assignment_menu.click()
 
     def modify_time(self, time):
@@ -489,7 +490,7 @@ class Assignment(object):
         """
         print('Creating a new Reading')
         self.open_assignment_menu(driver)
-        driver.find_element(By.LINK_TEXT, 'Add Reading').click()
+        driver.find_element(By.ID, 'reading-select').click()
         time.sleep(1)
         wait = WebDriverWait(driver, Assignment.WAIT_TIME * 3)
         wait.until(
@@ -973,13 +974,9 @@ if __name__ == '__main__':
                 )
             )
         ).click()
+    assign = Assignment()
     print('Open assignment menu')
-    assignment_menu = driver.find_element(
-        By.CSS_SELECTOR, 'button.sidebar-toggle')
-    color = assignment_menu.value_of_css_property('background-color')
-    if not color.lower() == 'rgba(153, 153, 153, 1)':
-        # background isn't gray so the toggle is still closed
-        assignment_menu.click()
+    assign.open_assignment_menu(driver)
     time.sleep(0.5)
     print('Add a new reading')
     driver.find_element(By.LINK_TEXT, 'Add Reading').click()
@@ -998,7 +995,6 @@ if __name__ == '__main__':
         # 'all': (('2/11/2017', '1000a'), ('2/14/2017', '1000p')),
     }
     print('Make a reading assignment')
-    assign = Assignment()
     assign.assign_periods(driver=driver, periods=periods)
     time.sleep(5)
     print('Close WebDriver')
