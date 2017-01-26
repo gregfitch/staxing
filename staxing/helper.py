@@ -410,6 +410,7 @@ class User(Helper):
             self.accept_contract()
             self.page.wait_for_page_load()
             source = self.driver.page_source.lower()
+        return self
 
     def logout(self):
         """Logout control."""
@@ -453,7 +454,7 @@ class User(Helper):
             'div.course-listing-item'
         )
         for a, x in enumerate(courses):
-            print('%s : %s' % (a, x.get_attribute('data-title')))
+            print('%s : "%s"' % (a, x.get_attribute('data-title')))
         return courses
 
     def open_user_menu(self):
@@ -511,12 +512,16 @@ class User(Helper):
 
     def select_course(self, title=None, appearance=None):
         """Select course."""
+        print('Select course "%s" / "%s"' % (title, appearance))
+        print('Currently at: %s' % self.current_url())
         if 'dashboard' not in self.current_url():
             # If not at the dashboard, try to load it
+            print('Go to course list')
             self.goto_course_list()
             self.page.wait_for_page_load()
         if 'dashboard' not in self.current_url():
             # Only has one course and the user is at the dashboard so return
+            print('Single course; select course complete')
             return
         if title:
             uses_option = 'title'
@@ -527,6 +532,7 @@ class User(Helper):
         else:
             raise self.LoginError('Unknown course selection "%s"' %
                                   title if title else appearance)
+        print('//div[@data-%s="%s"]//a' % (uses_option, course))
         select = self.wait.until(
             expect.element_to_be_clickable(
                 (
@@ -539,6 +545,8 @@ class User(Helper):
                                    select.get_attribute('href')))
         select.click()
         self.page.wait_for_page_load()
+        print('Select course complete')
+        return self
 
     def view_reference_book(self):
         """Access the reference book."""
@@ -589,6 +597,11 @@ class Teacher(User):
             kwargs['email_password'] = os.getenv('TEST_EMAIL_PASSWORD')
         super(Teacher, self).__init__(existing_driver=existing_driver,
                                       **kwargs)
+
+    def switch_user(self, username):
+        """Switch username during chained actions."""
+        self.username = username
+        return self
 
     def add_assignment(self, assignment, args):
         """Add an assignment."""
@@ -785,13 +798,11 @@ class Teacher(User):
 
     def get_month_year(self):
         """Break a date string into a month year tuple."""
-        calendar_heading = WebDriverWait(self.driver, 3).until(
-            expect.visibility_of_element_located(
-                (By.XPATH,
-                 '//div[contains(@class,"calendar-header-label")]/span')
-            )
-        ).text
-        month, year = calendar_heading.split(' ')
+        calendar_heading = self.find(By.CSS_SELECTOR,
+                                     'div.calendar-header-label')
+        Assignment.scroll_to(self.driver, calendar_heading)
+        calendar_date = calendar_heading.text
+        month, year = calendar_date.split(' ')
         return self.get_month_number(month), int(year)
 
     def rotate_calendar(self, target):

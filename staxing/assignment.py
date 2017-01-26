@@ -222,12 +222,17 @@ class Assignment(object):
 
     def open_assignment_menu(self, driver):
         """Open the Add Assignment menu if it is closed."""
+        print('Open the assignment menu')
         assignment_menu = driver.find_element(
             By.CSS_SELECTOR, 'button.sidebar-toggle')
+        Assignment.scroll_to(driver, assignment_menu)
         color = assignment_menu.value_of_css_property('background-color')
         if not color.lower() == 'rgba(153, 153, 153, 1)':
             # background isn't gray so the toggle is still closed
             assignment_menu.click()
+            print('Open menu')
+            return
+        print('Menu already open')
 
     def modify_time(self, time):
         """Modify time string for react."""
@@ -354,9 +359,11 @@ class Assignment(object):
                     '//label[@for="%s"]' % period.get_attribute('id')
                 ).text
             ] = period
+        period_match = False
         for period in options:
             print('Period:', period)
             # activate or deactivate a specific period/section row
+            period_match = period_match or period in periods
             if period not in periods:
                 if not options[period].is_displayed():
                     driver.execute_script(
@@ -386,6 +393,8 @@ class Assignment(object):
             if opens_at:
                 self.assign_time(driver=driver, time=opens_at,
                                  option=options[period], target='open')
+        if not period_match:
+            raise ValueError('No periods matched')
 
     def select_status(self, driver, status):
         """Select assignment status."""
@@ -407,7 +416,7 @@ class Assignment(object):
             time.sleep(1)
             element = driver.find_element(
                 By.XPATH,
-                '//button[contains(@aria-role,"close") and @type="button"]'
+                '//button[contains(text(),"Cancel") and @type="button"]'
             ).click()
             try:
                 wait = WebDriverWait(driver, Assignment.WAIT_TIME)
@@ -490,7 +499,7 @@ class Assignment(object):
         """
         print('Creating a new Reading')
         self.open_assignment_menu(driver)
-        driver.find_element(By.ID, 'reading-select').click()
+        driver.find_element(By.LINK_TEXT, 'Add Reading').click()
         time.sleep(1)
         wait = WebDriverWait(driver, Assignment.WAIT_TIME * 3)
         wait.until(
@@ -499,19 +508,26 @@ class Assignment(object):
             )
         )
         if break_point == Assignment.BEFORE_TITLE:
+            print('Break BEFORE_TITLE')
             return
+        print('Enter the title')
         driver.find_element(By.ID, 'reading-title').send_keys(title)
         if break_point == Assignment.BEFORE_DESCRIPTION:
+            print('Break BEFORE_DESCRIPTION')
             return
+        print('Enter the description')
         driver.find_element(
             By.XPATH,
             '//div[contains(@class,"assignment-description")]//textarea' +
             '[contains(@class,"form-control")]'). \
             send_keys(description)
         if break_point == Assignment.BEFORE_PERIOD:
+            print('Break BEFORE_PERIOD')
             return
+        print('Assign periods')
         self.assign_periods(driver, periods)
         # add reading sections to the assignment
+        print('Set reading section list')
         driver.find_element(By.ID, 'reading-select').click()
         wait.until(
             expect.visibility_of_element_located(
@@ -519,9 +535,11 @@ class Assignment(object):
             )
         )
         if break_point == Assignment.BEFORE_SECTION_SELECT:
+            print('Break BEFORE_SECTION_SELECT')
             return
         self.select_sections(driver, readings)
         if break_point == Assignment.BEFORE_READING_SELECT:
+            print('Break BEFORE_READING_SELECT')
             return
         driver.find_element(By.XPATH,
                             '//button[text()="Add Readings"]').click()
@@ -531,7 +549,9 @@ class Assignment(object):
             )
         )
         if break_point == Assignment.BEFORE_STATUS_SELECT:
+            print('Break BEFORE_STATUS_SELECT')
             return
+        print('Set assignment status: %s' % status)
         self.select_status(driver, status)
 
     def find_all_questions(self, driver, problems):
@@ -862,7 +882,6 @@ class Assignment(object):
     def delete_reading(self, driver, title, description, periods, readings,
                        status):
         """Delete a reading assignment."""
-        # raise NotImplementedError(inspect.currentframe().f_code.co_name)
         wait = WebDriverWait(driver, Assignment.WAIT_TIME * 4)
         wait.until(
             expect.visibility_of_element_located(
@@ -874,14 +893,19 @@ class Assignment(object):
             _, due_date = periods[period]
             break
         url = driver.current_url.split('/')
+        print(url)
         date = due_date.split('/')
         temp = []
         temp.append(date[2])
         temp.append(date[0])
         temp.append(date[1])
         date = '-'.join(temp)
-        url[-2] = date
+        print(url)
+        url.append('month')
+        url.append(date)
+        print(url)
         url = '/'.join(url)
+        print(url)
         driver.get(url)
         page = Page(driver, Assignment.WAIT_TIME)
         page.wait_for_page_load()

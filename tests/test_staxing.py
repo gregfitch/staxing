@@ -194,10 +194,10 @@ class TestStaxingUser(unittest.TestCase):
         courses = self.user.get_course_list()
         course_number = 0 if len(courses) <= 1 \
             else randint(1, len(courses)) - 1
-        title = courses[course_number].text
+        title = courses[course_number].get_attribute('data-title')
         Assignment.scroll_to(self.user.driver, courses[course_number])
         self.user.select_course(title=title)
-        was_successful = 'courses' in self.user.current_url() or \
+        was_successful = 'course' in self.user.current_url() or \
             'list' in self.user.current_url() or \
             'calendar' in self.user.current_url() or \
             'contents' in self.user.current_url()
@@ -231,7 +231,7 @@ class TestStaxingUser(unittest.TestCase):
             title = courses[course_number].text
         Assignment.scroll_to(self.user.driver, courses[course_number])
         self.user.select_course(appearance=appearance)
-        was_successful = 'courses' in self.user.current_url() or \
+        was_successful = 'course' in self.user.current_url() or \
             'list' in self.user.current_url() or \
             'calendar' in self.user.current_url() or \
             'contents' in self.user.current_url()
@@ -243,7 +243,7 @@ class TestStaxingUser(unittest.TestCase):
             By.CLASS_NAME,
             'course-name'
         ).text
-        assert(course_name in title), \
+        assert(course_name in title.replace('\n', ' ')), \
             'Failed to select course "%s"' % course_name
 
     @pytest.mark.skipif(str(207) not in TESTS, reason='Excluded')
@@ -311,6 +311,12 @@ class TestStaxingUser(unittest.TestCase):
 class TestStaxingTutorTeacher(unittest.TestCase):
     """Staxing case tests."""
 
+    book_sections = Teacher(use_env_vars=True) \
+        .switch_user(os.getenv('TEACHER_USER_MULTI')) \
+        .login() \
+        .select_course(title='Physics with Courseware Review') \
+        .get_book_sections()
+
     def setUp(self):
         """Pretest settings."""
         self.teacher = Teacher(use_env_vars=True)
@@ -319,6 +325,7 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         self.teacher.set_window_size(height=700, width=1200)
         self.teacher.login()
         self.teacher.select_course(title='Physics with Courseware Review')
+        self.book_sections = self.__class__.book_sections
 
     def tearDown(self):
         """Test destructor."""
@@ -342,10 +349,10 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         end_time_2 = '11:59 pm'
         start_date_3 = self.teacher.date_string(day_delta=left + 2)
         end_date_3 = self.teacher.date_string(day_delta=right + 2)
-        reading_options = self.teacher.get_book_sections()
-        reading_start = randint(0, (len(reading_options) - 1))
+        # reading_options = self.teacher.get_book_sections()
+        reading_start = randint(0, (len(self.book_sections) - 1))
         reading_end = reading_start + randint(1, 5)
-        reading_list = reading_options[reading_start:reading_end]
+        reading_list = self.book_sections[reading_start:reading_end]
         self.teacher.add_assignment(
             assignment='reading',
             args={
@@ -363,7 +370,7 @@ class TestStaxingTutorTeacher(unittest.TestCase):
                 'break_point': None,
             }
         )
-        assert('courses' in self.teacher.current_url()), \
+        assert('course' in self.teacher.current_url()), \
             'Not at dashboard'
         self.teacher.rotate_calendar(end_date_1)
         reading = self.teacher.find(
@@ -385,10 +392,10 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         end_date_1 = self.teacher.date_string(day_delta=right)
         start_date_2 = self.teacher.date_string(day_delta=left + 1)
         end_date_2 = self.teacher.date_string(day_delta=right + 1)
-        reading_options = self.teacher.get_book_sections()
-        reading_start = randint(0, (len(reading_options) - 1))
+        # reading_options = self.teacher.get_book_sections()
+        reading_start = randint(0, (len(self.book_sections) - 1))
         reading_end = reading_start + randint(1, 5)
-        reading_list = reading_options[reading_start:reading_end]
+        reading_list = self.book_sections[reading_start:reading_end]
         self.teacher.add_assignment(
             assignment='reading',
             args={
@@ -403,7 +410,7 @@ class TestStaxingTutorTeacher(unittest.TestCase):
                 'break_point': None,
             }
         )
-        assert('courses' in self.teacher.current_url()), \
+        assert('course' in self.teacher.current_url()), \
             'Not at dashboard'
         self.teacher.rotate_calendar(end_date_1)
         reading = self.teacher.find(
@@ -427,10 +434,10 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         end_date_2 = self.teacher.date_string(day_delta=right + 1)
         start_date_3 = self.teacher.date_string(day_delta=left + 2)
         end_date_3 = self.teacher.date_string(day_delta=right + 2)
-        reading_options = self.teacher.get_book_sections()
-        reading_start = randint(0, (len(reading_options) - 1))
+        # reading_options = self.teacher.get_book_sections()
+        reading_start = randint(0, (len(self.book_sections) - 1))
         reading_end = reading_start + randint(1, 5)
-        reading_list = reading_options[reading_start:reading_end]
+        reading_list = self.book_sections[reading_start:reading_end]
         self.teacher.add_assignment(
             assignment='reading',
             args={
@@ -447,7 +454,7 @@ class TestStaxingTutorTeacher(unittest.TestCase):
                 'break_point': None,
             }
         )
-        assert('courses' in self.teacher.current_url()), \
+        assert('course' in self.teacher.current_url()), \
             'Not at dashboard'
         self.teacher.rotate_calendar(end_date_1)
         reading = self.teacher.find(
@@ -467,10 +474,10 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         right = left + randint(1, 10)
         start_date_1 = self.teacher.date_string(day_delta=left)
         end_date_1 = self.teacher.date_string(day_delta=right)
-        reading_options = self.teacher.get_book_sections()
-        reading_start = randint(0, (len(reading_options) - 1))
+        # reading_options = self.teacher.get_book_sections()
+        reading_start = randint(0, (len(self.book_sections) - 1))
         reading_end = reading_start + randint(1, 5)
-        reading_list = reading_options[reading_start:reading_end]
+        reading_list = self.book_sections[reading_start:reading_end]
         self.teacher.add_assignment(
             assignment='reading',
             args={
@@ -484,7 +491,7 @@ class TestStaxingTutorTeacher(unittest.TestCase):
                 'break_point': None,
             }
         )
-        assert('courses' in self.teacher.current_url()), \
+        assert('course' in self.teacher.current_url()), \
             'Not at dashboard'
         self.teacher.rotate_calendar(end_date_1)
         reading = self.teacher.find(
@@ -504,10 +511,10 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         right = left + randint(1, 10)
         start_date_1 = self.teacher.date_string(day_delta=left)
         end_date_1 = self.teacher.date_string(day_delta=right)
-        reading_options = self.teacher.get_book_sections()
-        reading_start = randint(0, (len(reading_options) - 1))
+        # reading_options = self.teacher.get_book_sections()
+        reading_start = randint(0, (len(self.book_sections) - 1))
         reading_end = reading_start + randint(1, 5)
-        reading_list = reading_options[reading_start:reading_end]
+        reading_list = self.book_sections[reading_start:reading_end]
         self.teacher.add_assignment(
             assignment='reading',
             args={
@@ -521,7 +528,7 @@ class TestStaxingTutorTeacher(unittest.TestCase):
                 'break_point': None,
             }
         )
-        assert('courses' in self.teacher.current_url()), \
+        assert('course' in self.teacher.current_url()), \
             'Not at dashboard'
         self.teacher.rotate_calendar(end_date_1)
         time.sleep(5.0)
@@ -554,7 +561,7 @@ class TestStaxingTutorTeacher(unittest.TestCase):
                 'break_point': None,
             }
         )
-        assert('courses' in self.teacher.current_url()), \
+        assert('course' in self.teacher.current_url()), \
             'Not at dashboard'
         self.teacher.rotate_calendar(end_date)
         reading = self.teacher.find(
