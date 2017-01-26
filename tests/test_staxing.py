@@ -14,7 +14,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from staxing.assignment import Assignment
 from staxing.helper import Helper, Teacher, Student, Admin, ContentQA, User
 
-__version__ = '0.0.4'
+__version__ = '0.0.5'
 TESTS = os.getenv(
     'CASELIST',
     str([
@@ -40,7 +40,7 @@ class TestStaxingHelper(unittest.TestCase):
     def tearDown(self):
         """Test destructor."""
         try:
-            self.helper.driver.quit()
+            self.helper.delete()
         except:
             pass
 
@@ -154,9 +154,9 @@ class TestStaxingUser(unittest.TestCase):
     def test_user_tutor_login(self):
         """Log into Tutor."""
         self.user.login(self.server, self.login, self.password)
-        was_successful = 'dashboard' in self.user.driver.current_url or \
-            'list' in self.user.driver.current_url or \
-            'calendar' in self.user.driver.current_url
+        was_successful = 'dashboard' in self.user.current_url() or \
+            'list' in self.user.current_url() or \
+            'calendar' in self.user.current_url()
         assert(was_successful), 'Failed to log into %s' % self.server
 
     @pytest.mark.skipif(str(202) not in TESTS, reason='Excluded')
@@ -165,8 +165,8 @@ class TestStaxingUser(unittest.TestCase):
         self.user.login(self.server, self.login, self.password)
         self.user.logout()
         was_successful = \
-            'http://cc.openstax.org/' in self.user.driver.current_url or \
-            'https://tutor-qa.openstax.org/?' in self.user.driver.current_url
+            'http://cc.openstax.org/' in self.user.current_url() or \
+            'https://tutor-qa.openstax.org/?' in self.user.current_url()
         assert(was_successful), 'Failed to log out of %s' % self.server
 
     @pytest.mark.skipif(str(203) not in TESTS, reason='Excluded')
@@ -174,7 +174,7 @@ class TestStaxingUser(unittest.TestCase):
         """Log into Accounts."""
         accounts = self.server.replace('tutor', 'accounts')
         self.user.login(accounts, self.login, self.password)
-        assert('profile' in self.user.driver.current_url), \
+        assert('profile' in self.user.current_url()), \
             'Failed to log into %s' % accounts
 
     @pytest.mark.skipif(str(204) not in TESTS, reason='Excluded')
@@ -183,7 +183,7 @@ class TestStaxingUser(unittest.TestCase):
         accounts = self.server.replace('tutor', 'accounts')
         self.user.login(accounts, self.login, self.password)
         self.user.logout()
-        assert('signin' in self.user.driver.current_url), \
+        assert('login' in self.user.current_url()), \
             'Failed to log out of %s' % accounts
 
     @pytest.mark.skipif(str(205) not in TESTS, reason='Excluded')
@@ -191,24 +191,21 @@ class TestStaxingUser(unittest.TestCase):
         """Select a course by its title."""
         self.user.login(self.server, self.login, self.password)
         print(self.user.current_url())
-        courses = self.user.driver.find_elements(
-            By.CLASS_NAME,
-            'tutor-course-item'
-        )
+        courses = self.user.get_course_list()
         course_number = 0 if len(courses) <= 1 \
             else randint(1, len(courses)) - 1
-        title = courses[course_number].text
+        title = courses[course_number].get_attribute('data-title')
         Assignment.scroll_to(self.user.driver, courses[course_number])
         self.user.select_course(title=title)
-        was_successful = 'courses' in self.user.driver.current_url or \
-            'list' in self.user.driver.current_url or \
-            'calendar' in self.user.driver.current_url or \
-            'contents' in self.user.driver.current_url
+        was_successful = 'course' in self.user.current_url() or \
+            'list' in self.user.current_url() or \
+            'calendar' in self.user.current_url() or \
+            'contents' in self.user.current_url()
         assert(was_successful), \
-            'Failed to select course in URL: %s' % self.user.driver.current_url
-        if 'contents' in self.user.driver.current_url:
+            'Failed to select course in URL: %s' % self.user.current_url()
+        if 'contents' in self.user.current_url():
             return
-        course_name = self.user.driver.find_element(
+        course_name = self.user.find(
             By.CLASS_NAME,
             'course-name'
         ).text
@@ -218,14 +215,11 @@ class TestStaxingUser(unittest.TestCase):
     def test_user_select_course_by_appearance(self):
         """Select a course by its appearance."""
         self.user.login(self.server, self.login, self.password)
-        courses = self.user.driver.find_elements(
-            By.CLASS_NAME,
-            'tutor-booksplash-course-item'
-        )
+        courses = self.user.get_course_list()
         course_number = 0 if len(courses) <= 1 \
             else randint(1, len(courses)) - 1
         appearance = courses[course_number].get_attribute('data-appearance')
-        appearance_courses = self.user.driver.find_elements(
+        appearance_courses = self.user.find_all(
                 By.XPATH,
                 '//div[contains(@data-appearance,"%s")]' % appearance
             )
@@ -237,40 +231,44 @@ class TestStaxingUser(unittest.TestCase):
             title = courses[course_number].text
         Assignment.scroll_to(self.user.driver, courses[course_number])
         self.user.select_course(appearance=appearance)
-        was_successful = 'courses' in self.user.driver.current_url or \
-            'list' in self.user.driver.current_url or \
-            'calendar' in self.user.driver.current_url or \
-            'contents' in self.user.driver.current_url
+        was_successful = 'course' in self.user.current_url() or \
+            'list' in self.user.current_url() or \
+            'calendar' in self.user.current_url() or \
+            'contents' in self.user.current_url()
         assert(was_successful), \
-            'Failed to select course in URL: %s' % self.user.driver.current_url
-        if 'contents' in self.user.driver.current_url:
+            'Failed to select course in URL: %s' % self.user.current_url()
+        if 'contents' in self.user.current_url():
             return
-        course_name = self.user.driver.find_element(
+        course_name = self.user.find(
             By.CLASS_NAME,
             'course-name'
         ).text
-        assert(course_name in title), \
+        assert(course_name in title.replace('\n', ' ')), \
             'Failed to select course "%s"' % course_name
 
     @pytest.mark.skipif(str(207) not in TESTS, reason='Excluded')
     def test_user_go_to_course_list(self):
         """No test placeholder."""
         self.user.login(self.server, self.login, self.password)
-        courses = self.user.driver.find_elements(
-            By.CLASS_NAME,
-            'tutor-course-item'
-        )
+        courses = self.user.get_course_list()
         course_number = 0 if len(courses) <= 1 \
             else randint(1, len(courses)) - 1
+        print(course_number)
         Assignment.scroll_to(self.user.driver, courses[course_number])
-        self.user.select_course(title=courses[course_number].text)
-        was_successful = 'courses' in self.user.driver.current_url or \
-            'list' in self.user.driver.current_url or \
-            'calendar' in self.user.driver.current_url
+        self.user.select_course(
+            title=courses[course_number].get_attribute('data-title'))
+        url = self.user.current_url()
+        was_successful = 'course' in url or \
+            'list' in url or \
+            'calendar' in url
+        print('%s in %s == %s' %
+              ('(course,list,calendar)', url, was_successful))
         assert(was_successful), 'Failed to select course'
         self.user.goto_course_list()
-        course_picker = self.server + '/dashboard/'
-        assert(self.user.driver.current_url == course_picker), \
+        course_picker = self.server + '/dashboard'
+        url = self.user.current_url()
+        print('%s ?= %s' % (url, course_picker))
+        assert(url == course_picker), \
             'Failed to return to the course picker'
 
     @pytest.mark.skipif(str(208) not in TESTS, reason='Excluded')
@@ -278,38 +276,46 @@ class TestStaxingUser(unittest.TestCase):
         """No test placeholder."""
         self.user.login(self.server, self.login, self.password)
         main_window = self.user.driver.current_window_handle
-        courses = self.user.driver.find_elements(
-            By.CLASS_NAME,
-            'tutor-course-item'
-        )
+        courses = self.user.get_course_list()
         course_number = 0 if len(courses) <= 1 \
             else randint(1, len(courses)) - 1
         Assignment.scroll_to(self.user.driver, courses[course_number])
-        self.user.select_course(title=courses[course_number].text)
-        was_successful = 'courses' in self.user.driver.current_url or \
-            'list' in self.user.driver.current_url or \
-            'calendar' in self.user.driver.current_url
+        self.user.select_course(
+            title=courses[course_number].get_attribute('data-title'))
+        url = self.user.current_url()
+        was_successful = 'course' in url or \
+            'list' in url or \
+            'calendar' in url
+        print('%s in %s == %s' %
+              ('(course,list,calendar)', url, was_successful))
         assert(was_successful), 'Failed to select course'
         self.user.view_reference_book()
+        self.user.sleep(1)
         self.user.driver.switch_to_window(self.user.driver.window_handles[1])
         WebDriverWait(self.user.driver, 60).until(
             expect.presence_of_element_located(
                 (By.CLASS_NAME, 'center-panel')
             )
         )
-        assert('contents' in self.user.driver.current_url or
-               'books' in self.user.driver.current_url), \
+        assert('contents' in self.user.current_url() or
+               'books' in self.user.current_url()), \
             'Failed to open the reference or WebView book.'
         self.user.driver.close()
         self.user.driver.switch_to_window(main_window)
-        was_successful = 'courses' in self.user.driver.current_url or \
-            'list' in self.user.driver.current_url or \
-            'calendar' in self.user.driver.current_url
+        was_successful = 'course' in self.user.current_url() or \
+            'list' in self.user.current_url() or \
+            'calendar' in self.user.current_url()
         assert(was_successful), 'Failed to return to the primary browser tab'
 
 
 class TestStaxingTutorTeacher(unittest.TestCase):
     """Staxing case tests."""
+
+    book_sections = Teacher(use_env_vars=True) \
+        .switch_user(os.getenv('TEACHER_USER_MULTI')) \
+        .login() \
+        .select_course(title='Physics with Courseware Review') \
+        .get_book_sections()
 
     def setUp(self):
         """Pretest settings."""
@@ -318,7 +324,8 @@ class TestStaxingTutorTeacher(unittest.TestCase):
                                           self.teacher.username)
         self.teacher.set_window_size(height=700, width=1200)
         self.teacher.login()
-        self.teacher.select_course(title='High School Physics')
+        self.teacher.select_course(title='Physics with Courseware Review')
+        self.book_sections = self.__class__.book_sections
 
     def tearDown(self):
         """Test destructor."""
@@ -332,20 +339,20 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         """Build reading assignments."""
         # Reading, individual periods, publish
         assignment_title = 'Reading-%s' % Assignment.rword(5)
-        left = randint(5, 20)
+        left = randint(0, 20)
         right = left + randint(1, 10)
         start_date_1 = self.teacher.date_string(day_delta=left)
-        end_date_1 = self.teacher.date_string(day_delta=left + right)
+        end_date_1 = self.teacher.date_string(day_delta=right)
         start_date_2 = self.teacher.date_string(day_delta=left + 1)
-        end_date_2 = self.teacher.date_string(day_delta=left + right + 1)
+        end_date_2 = self.teacher.date_string(day_delta=right + 1)
         start_time_2 = '6:30 am'
         end_time_2 = '11:59 pm'
         start_date_3 = self.teacher.date_string(day_delta=left + 2)
-        end_date_3 = self.teacher.date_string(day_delta=left + right + 2)
-        reading_options = self.teacher.get_book_sections()
-        reading_start = randint(0, (len(reading_options) - 1))
+        end_date_3 = self.teacher.date_string(day_delta=right + 2)
+        # reading_options = self.teacher.get_book_sections()
+        reading_start = randint(0, (len(self.book_sections) - 1))
         reading_end = reading_start + randint(1, 5)
-        reading_list = reading_options[reading_start:reading_end]
+        reading_list = self.book_sections[reading_start:reading_end]
         self.teacher.add_assignment(
             assignment='reading',
             args={
@@ -363,7 +370,7 @@ class TestStaxingTutorTeacher(unittest.TestCase):
                 'break_point': None,
             }
         )
-        assert('courses' in self.teacher.current_url()), \
+        assert('course' in self.teacher.current_url()), \
             'Not at dashboard'
         self.teacher.rotate_calendar(end_date_1)
         reading = self.teacher.find(
@@ -379,16 +386,16 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         """Build reading assignments."""
         # Reading, all periods, publish
         assignment_title = 'Reading-%s' % Assignment.rword(5)
-        left = randint(5, 20)
+        left = randint(0, 20)
         right = left + randint(1, 10)
         start_date_1 = self.teacher.date_string(day_delta=left)
-        end_date_1 = self.teacher.date_string(day_delta=left + right)
+        end_date_1 = self.teacher.date_string(day_delta=right)
         start_date_2 = self.teacher.date_string(day_delta=left + 1)
-        end_date_2 = self.teacher.date_string(day_delta=left + right + 1)
-        reading_options = self.teacher.get_book_sections()
-        reading_start = randint(0, (len(reading_options) - 1))
+        end_date_2 = self.teacher.date_string(day_delta=right + 1)
+        # reading_options = self.teacher.get_book_sections()
+        reading_start = randint(0, (len(self.book_sections) - 1))
         reading_end = reading_start + randint(1, 5)
-        reading_list = reading_options[reading_start:reading_end]
+        reading_list = self.book_sections[reading_start:reading_end]
         self.teacher.add_assignment(
             assignment='reading',
             args={
@@ -403,7 +410,7 @@ class TestStaxingTutorTeacher(unittest.TestCase):
                 'break_point': None,
             }
         )
-        assert('courses' in self.teacher.current_url()), \
+        assert('course' in self.teacher.current_url()), \
             'Not at dashboard'
         self.teacher.rotate_calendar(end_date_1)
         reading = self.teacher.find(
@@ -419,18 +426,18 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         """Build reading assignments."""
         # Reading, individual periods, draft
         assignment_title = 'Reading-%s' % Assignment.rword(5)
-        left = randint(5, 20)
+        left = randint(0, 20)
         right = left + randint(1, 10)
         start_date_1 = self.teacher.date_string(day_delta=left)
-        end_date_1 = self.teacher.date_string(day_delta=left + right)
+        end_date_1 = self.teacher.date_string(day_delta=right)
         start_date_2 = self.teacher.date_string(day_delta=left + 1)
-        end_date_2 = self.teacher.date_string(day_delta=left + right + 1)
+        end_date_2 = self.teacher.date_string(day_delta=right + 1)
         start_date_3 = self.teacher.date_string(day_delta=left + 2)
-        end_date_3 = self.teacher.date_string(day_delta=left + right + 2)
-        reading_options = self.teacher.get_book_sections()
-        reading_start = randint(0, (len(reading_options) - 1))
+        end_date_3 = self.teacher.date_string(day_delta=right + 2)
+        # reading_options = self.teacher.get_book_sections()
+        reading_start = randint(0, (len(self.book_sections) - 1))
         reading_end = reading_start + randint(1, 5)
-        reading_list = reading_options[reading_start:reading_end]
+        reading_list = self.book_sections[reading_start:reading_end]
         self.teacher.add_assignment(
             assignment='reading',
             args={
@@ -447,7 +454,7 @@ class TestStaxingTutorTeacher(unittest.TestCase):
                 'break_point': None,
             }
         )
-        assert('courses' in self.teacher.current_url()), \
+        assert('course' in self.teacher.current_url()), \
             'Not at dashboard'
         self.teacher.rotate_calendar(end_date_1)
         reading = self.teacher.find(
@@ -463,14 +470,14 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         """Build reading assignments."""
         # Reading, all periods, draft
         assignment_title = 'Reading-%s' % Assignment.rword(5)
-        left = randint(5, 20)
+        left = randint(0, 20)
         right = left + randint(1, 10)
         start_date_1 = self.teacher.date_string(day_delta=left)
-        end_date_1 = self.teacher.date_string(day_delta=left + right)
-        reading_options = self.teacher.get_book_sections()
-        reading_start = randint(0, (len(reading_options) - 1))
+        end_date_1 = self.teacher.date_string(day_delta=right)
+        # reading_options = self.teacher.get_book_sections()
+        reading_start = randint(0, (len(self.book_sections) - 1))
         reading_end = reading_start + randint(1, 5)
-        reading_list = reading_options[reading_start:reading_end]
+        reading_list = self.book_sections[reading_start:reading_end]
         self.teacher.add_assignment(
             assignment='reading',
             args={
@@ -484,7 +491,7 @@ class TestStaxingTutorTeacher(unittest.TestCase):
                 'break_point': None,
             }
         )
-        assert('courses' in self.teacher.current_url()), \
+        assert('course' in self.teacher.current_url()), \
             'Not at dashboard'
         self.teacher.rotate_calendar(end_date_1)
         reading = self.teacher.find(
@@ -500,14 +507,14 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         """Build reading assignments."""
         # Reading, one period, cancel
         assignment_title = 'Reading-%s' % Assignment.rword(5)
-        left = randint(5, 20)
+        left = randint(0, 20)
         right = left + randint(1, 10)
         start_date_1 = self.teacher.date_string(day_delta=left)
-        end_date_1 = self.teacher.date_string(day_delta=left + right)
-        reading_options = self.teacher.get_book_sections()
-        reading_start = randint(0, (len(reading_options) - 1))
+        end_date_1 = self.teacher.date_string(day_delta=right)
+        # reading_options = self.teacher.get_book_sections()
+        reading_start = randint(0, (len(self.book_sections) - 1))
         reading_end = reading_start + randint(1, 5)
-        reading_list = reading_options[reading_start:reading_end]
+        reading_list = self.book_sections[reading_start:reading_end]
         self.teacher.add_assignment(
             assignment='reading',
             args={
@@ -521,7 +528,7 @@ class TestStaxingTutorTeacher(unittest.TestCase):
                 'break_point': None,
             }
         )
-        assert('courses' in self.teacher.current_url()), \
+        assert('course' in self.teacher.current_url()), \
             'Not at dashboard'
         self.teacher.rotate_calendar(end_date_1)
         time.sleep(5.0)
@@ -554,7 +561,7 @@ class TestStaxingTutorTeacher(unittest.TestCase):
                 'break_point': None,
             }
         )
-        assert('courses' in self.teacher.current_url()), \
+        assert('course' in self.teacher.current_url()), \
             'Not at dashboard'
         self.teacher.rotate_calendar(end_date)
         reading = self.teacher.find(

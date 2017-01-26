@@ -223,11 +223,17 @@ class Assignment(object):
 
     def open_assignment_menu(self, driver):
         """Open the Add Assignment menu if it is closed."""
+        print('Open the assignment menu')
         assignment_menu = driver.find_element(
-            By.XPATH, '//button[contains(@class,"sidebar-toggle")]'
-        )
-        if 'open' not in assignment_menu.get_attribute('class'):
+            By.CSS_SELECTOR, 'button.sidebar-toggle')
+        Assignment.scroll_to(driver, assignment_menu)
+        color = assignment_menu.value_of_css_property('background-color')
+        if not color.lower() == 'rgba(153, 153, 153, 1)':
+            # background isn't gray so the toggle is still closed
             assignment_menu.click()
+            print('Open menu')
+            return
+        print('Menu already open')
 
     def modify_time(self, time):
         """Modify time string for react."""
@@ -247,11 +253,11 @@ class Assignment(object):
 
         next_month = driver.find_element(
             By.CLASS_NAME,
-            'datepicker__navigation--next'
+            'react-datepicker__navigation--next'
         )
         current = driver.find_element(
             By.CLASS_NAME,
-            'datepicker__current-month'
+            'react-datepicker__current-month'
         )
         month, year = current.text.split(' ')
         month = months[month]
@@ -261,7 +267,7 @@ class Assignment(object):
             next_month.click()
             current = driver.find_element(
                 By.CLASS_NAME,
-                'datepicker__current-month'
+                'react-datepicker__current-month'
             )
             month, year = current.text.split(' ')
             month = months[month]
@@ -272,12 +278,12 @@ class Assignment(object):
             # arrow inside the while loop
             previous_month = driver.find_element(
                 By.CLASS_NAME,
-                'datepicker__navigation--previous'
+                'react-datepicker__navigation--previous'
             )
             previous_month.click()
             current = driver.find_element(
                 By.CLASS_NAME,
-                'datepicker__current-month'
+                'react-datepicker__current-month'
             )
             month, year = current.text.split(' ')
             month = months[month]
@@ -301,7 +307,7 @@ class Assignment(object):
         start = option if option else driver
         path = '../..' if not is_all else ''
         path += '//div[contains(@class,"-%s-date")]' % target
-        path += '//div[contains(@class,"datepicker__input")]//input'
+        path += '//div[contains(@class,"react-datepicker__input")]//input'
         date_element = start.find_element(By.XPATH, path)
         # get calendar to correct month
         split = date.split('/')
@@ -310,7 +316,7 @@ class Assignment(object):
         self.adjust_date_picker(driver, date_element, change)
         driver.find_element(
             By.XPATH,
-            '//div[contains(@class,"datepicker__day") ' +
+            '//div[contains(@class,"react-datepicker__day") ' +
             'and not(contains(@class,"disabled")) ' +
             'and text()="%s"]' % change.day
         ).click()
@@ -354,9 +360,11 @@ class Assignment(object):
                     '//label[@for="%s"]' % period.get_attribute('id')
                 ).text
             ] = period
+        period_match = False
         for period in options:
             print('Period:', period)
             # activate or deactivate a specific period/section row
+            period_match = period_match or period in periods
             if period not in periods:
                 if not options[period].is_displayed():
                     driver.execute_script(
@@ -386,6 +394,8 @@ class Assignment(object):
             if opens_at:
                 self.assign_time(driver=driver, time=opens_at,
                                  option=options[period], target='open')
+        if not period_match:
+            raise ValueError('No periods matched')
 
     def select_status(self, driver, status):
         """Select assignment status."""
@@ -407,7 +417,7 @@ class Assignment(object):
             time.sleep(1)
             element = driver.find_element(
                 By.XPATH,
-                '//button[contains(@aria-role,"close") and @type="button"]'
+                '//button[contains(text(),"Cancel") and @type="button"]'
             ).click()
             try:
                 wait = WebDriverWait(driver, Assignment.WAIT_TIME)
@@ -499,19 +509,26 @@ class Assignment(object):
             )
         )
         if break_point == Assignment.BEFORE_TITLE:
+            print('Break BEFORE_TITLE')
             return
+        print('Enter the title')
         driver.find_element(By.ID, 'reading-title').send_keys(title)
         if break_point == Assignment.BEFORE_DESCRIPTION:
+            print('Break BEFORE_DESCRIPTION')
             return
+        print('Enter the description')
         driver.find_element(
             By.XPATH,
             '//div[contains(@class,"assignment-description")]//textarea' +
             '[contains(@class,"form-control")]'). \
             send_keys(description)
         if break_point == Assignment.BEFORE_PERIOD:
+            print('Break BEFORE_PERIOD')
             return
+        print('Assign periods')
         self.assign_periods(driver, periods)
         # add reading sections to the assignment
+        print('Set reading section list')
         driver.find_element(By.ID, 'reading-select').click()
         wait.until(
             expect.visibility_of_element_located(
@@ -519,9 +536,11 @@ class Assignment(object):
             )
         )
         if break_point == Assignment.BEFORE_SECTION_SELECT:
+            print('Break BEFORE_SECTION_SELECT')
             return
         self.select_sections(driver, readings)
         if break_point == Assignment.BEFORE_READING_SELECT:
+            print('Break BEFORE_READING_SELECT')
             return
         driver.find_element(By.XPATH,
                             '//button[text()="Add Readings"]').click()
@@ -531,7 +550,9 @@ class Assignment(object):
             )
         )
         if break_point == Assignment.BEFORE_STATUS_SELECT:
+            print('Break BEFORE_STATUS_SELECT')
             return
+        print('Set assignment status: %s' % status)
         self.select_status(driver, status)
 
     def find_all_questions(self, driver, problems):
@@ -862,7 +883,6 @@ class Assignment(object):
     def delete_reading(self, driver, title, description, periods, readings,
                        status):
         """Delete a reading assignment."""
-        # raise NotImplementedError(inspect.currentframe().f_code.co_name)
         wait = WebDriverWait(driver, Assignment.WAIT_TIME * 4)
         wait.until(
             expect.visibility_of_element_located(
@@ -874,14 +894,19 @@ class Assignment(object):
             _, due_date = periods[period]
             break
         url = driver.current_url.split('/')
+        print(url)
         date = due_date.split('/')
         temp = []
         temp.append(date[2])
         temp.append(date[0])
         temp.append(date[1])
         date = '-'.join(temp)
-        url[-2] = date
+        print(url)
+        url.append('month')
+        url.append(date)
+        print(url)
         url = '/'.join(url)
+        print(url)
         driver.get(url)
         page = Page(driver, Assignment.WAIT_TIME)
         page.wait_for_page_load()
@@ -951,43 +976,51 @@ if __name__ == '__main__':
     import os
     from selenium import webdriver
 
+    print('Start Chrome instance')
     driver = webdriver.Chrome()
+    print('Set window size')
     driver.set_window_size(1300, 768)
+    print('Open Tutor QA')
     driver.get('https://tutor-qa.openstax.org/')
-    driver.find_element(By.LINK_TEXT, 'Login').click()
-    driver.find_element(By.ID, 'auth_key'). \
+    print('Log in')
+    driver.find_element(By.LINK_TEXT, 'Log in').click()
+    driver.find_element(By.ID, 'login_username_or_email'). \
         send_keys(os.getenv('TEACHER_USER'))
-    driver.find_element(By.ID, 'password'). \
+    driver.find_element(By.CSS_SELECTOR, 'input.primary').click()
+    driver.find_element(By.ID, 'login_password'). \
         send_keys(os.getenv('TEACHER_PASSWORD'))
-    driver.find_element(
-            By.XPATH, '//button[text()="Sign in"]'
-        ).click()
+    driver.find_element(By.CSS_SELECTOR, 'input.primary').click()
+    print('Select a course')
     WebDriverWait(driver, 20).until(
             expect.element_to_be_clickable(
                 (
                     By.XPATH, '//div[@data-%s="%s"]//a' %
-                    ('title', 'HS Physics')
+                    ('title', 'Physics with Courseware Review --KAJAL')
                 )
             )
         ).click()
-    driver.find_element(
-            By.XPATH,
-            '//button[contains(@class,"dropdown-toggle")]'
-        ).click()
+    assign = Assignment()
+    print('Open assignment menu')
+    assign.open_assignment_menu(driver)
     time.sleep(0.5)
+    print('Add a new reading')
     driver.find_element(By.LINK_TEXT, 'Add Reading').click()
+    print('Test date/time options')
     test_periods = {
-        '1st': ('9/10/2016', '9/15/2016'),
-        '2nd': ('9/12/2016', '9/17/2016'),
-        '3rd': (('9/14/2016', '4:00 am'), '9/19/2016'),
-        'all': ('10/11/2016', '10/14/2016'),
+        '1st': ('2/10/2017', '2/15/2017'),
+        '2nd': ('2/12/2017', '2/17/2017'),
+        '3rd': (('2/14/2017', '4:00 am'), '2/19/2017'),
+        'all': ('2/11/2017', '2/14/2017'),
     }
     periods = {
-        '1st': ('9/12/2016', '9/17/2016'),
-        '2nd': (('9/14/2016', '8:00a'), ('9/19/2016', '800p')),
-        '3rd': ('9/16/2016', ('9/21/2016', '8:00 pm')),
-        'test': ('8/20/2016', '8/22/2016'),
-        'all': (('10/11/2016', '1000a'), ('10/14/2016', '1000p')),
+        '1st': ('2/12/2017', '2/17/2017'),
+        '2nd': (('2/14/2017', '8:00a'), ('2/19/2017', '800p')),
+        '3rd': ('2/16/2017', ('2/21/2017', '8:00 pm')),
+        'test': ('2/20/2017', '2/22/2017'),
+        # 'all': (('2/11/2017', '1000a'), ('2/14/2017', '1000p')),
     }
-    assign = Assignment()
+    print('Make a reading assignment')
     assign.assign_periods(driver=driver, periods=periods)
+    time.sleep(5)
+    print('Close WebDriver')
+    driver.quit()

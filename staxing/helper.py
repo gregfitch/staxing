@@ -31,7 +31,7 @@ try:
 except ImportError:
     from page_load import SeleniumWait as Page
 
-__version__ = '0.0.29'
+__version__ = '0.0.32'
 
 
 class Helper(object):
@@ -311,6 +311,7 @@ class User(Helper):
         self.email = email
         self.email_username = email_username
         self.email_password = email_password
+        self.assign = Assignment()
         super(User, self).__init__(driver_type=driver_type,
                                    capabilities=capabilities,
                                    pasta_user=pasta_user,
@@ -318,6 +319,22 @@ class User(Helper):
                                    opera_driver=opera_driver,
                                    existing_driver=existing_driver,
                                    **kwargs)
+
+    def accept_contract(self):
+        """
+        Contract acceptance for Terms of Service and the Privacy Policy.
+        """
+        checkbox_id = 'agreement_i_agree' if 'accounts' in \
+            self.current_url() else 'i_agree'
+        try:
+            target = self.find(By.ID, checkbox_id)
+            Assignment.scroll_to(self.driver, target)
+            target.click()
+            target = self.find(By.ID, 'agreement_submit')
+            Assignment.scroll_to(self.driver, target)
+            target.click()
+        except Exception as e:
+            raise e
 
     def login(self, url=None, username=None, password=None):
         """
@@ -338,74 +355,66 @@ class User(Helper):
         self.page.wait_for_page_load()
         if 'tutor' in url_address:
             # check to see if the screen width is normal or condensed
-            if self.driver.get_window_size()['width'] <= self.CONDENSED_WIDTH:
+            if self.get_window_size('width') <= self.CONDENSED_WIDTH:
                 # get small-window menu toggle
-                is_collapsed = self.driver.find_element(
-                    By.XPATH,
-                    '//button[contains(@class,"navbar-toggle")]'
-                )
+                is_collapsed = self.find(By.CSS_SELECTOR,
+                                         'button.navbar-toggle')
                 # check if the menu is collapsed and, if yes, open it
-                if('collapsed' in is_collapsed.get_attribute('class')):
+                try:
+                    WebDriverWait(self.driver, 2).until(
+                        expect.visibility_of_element_located(
+                            By.XPATH,
+                            '//a[contains(@href,"/accounts/login")]'
+                        )
+                    )
+                except:  # closed menu,
                     is_collapsed.click()
             self.wait.until(
                 expect.visibility_of_element_located(
-                    (By.LINK_TEXT, 'Login')
+                    (By.LINK_TEXT, 'Log in')
                 )
             ).click()
             self.page.wait_for_page_load()
         elif 'exercises' in url_address:
-            self.driver.find_element(By.LINK_TEXT, 'Sign in').click()
+            self.find(By.LINK_TEXT, 'Sign in').click()
             self.page.wait_for_page_load()
         src = self.driver.page_source
         text_located = re.search(r'openstax', src.lower())
         self.sleep(1)
         if not text_located:
-            raise self.LoginError('Non-OpenStax URL: %s' %
-                                  self.driver.current_url)
+            raise self.LoginError(
+                'Non-OpenStax URL: %s' % self.driver.current_url
+            )
         # enter the username and password
-        self.driver.find_element(By.ID, 'auth_key').send_keys(username)
-        self.driver.find_element(By.ID, 'password').send_keys(password)
-        # click on the sign in button
-        self.driver.find_element(
-            By.XPATH, '//button[text()="Sign in"]'
-        ).click()
+        self.find(By.ID, 'login_username_or_email').send_keys(username)
+        self.find(By.XPATH, '//input[@value="Next"]').click()
+        self.find(By.ID, 'login_password').send_keys(password)
+        self.find(By.XPATH, '//input[@value="Login"]').click()
         self.page.wait_for_page_load()
         # check if a password change is required
-        if 'Reset Password' in self.driver.page_source:
+        if 'reset your password' in self.driver.page_source.lower():
             try:
-                self.driver.find_element(
-                    By.ID,
-                    'reset_password_password'
-                ).send_keys(self.password)
-                self.driver.find_element(
-                    By.ID,
-                    'reset_password_password_confirmation'
-                ).send_keys(self.password)
-                self.driver.find_element(
-                    By.XPATH,
-                    '//input[@value="Set Password"]'
-                ).click()
+                self.find(By.ID, 'reset_password_password') \
+                    .send_keys(self.password)
+                self.find(By.ID, 'reset_password_password_confirmation') \
+                    .send_keys(self.password)
+                self.find(By.XPATH, '//input[@value="Reset Password"]').click()
+                self.sleep(1)
+                self.find(By.XPATH, '//input[@value="Continue"]').click()
             except Exception as e:
                 raise e
         self.page.wait_for_page_load()
-        if 'Terms of Use' in self.driver.page_source:
-            try:
-                self.driver.find_element(By.ID, 'i_agree').click()
-                self.driver.find_element(By.ID, 'agreement_submit').click()
-            except Exception as e:
-                raise e
-        self.page.wait_for_page_load()
-        if 'Privacy Policy' in self.driver.page_source:
-            try:
-                self.driver.find_element(By.ID, 'i_agree').click()
-                self.driver.find_element(By.ID, 'agreement_submit').click()
-            except Exception as e:
-                raise e
-        self.page.wait_for_page_load()
+        source = self.driver.page_source.lower()
+        print('Reached Terms/Privacy')
+        while 'terms of use' in source or 'privacy policy' in source:
+            self.accept_contract()
+            self.page.wait_for_page_load()
+            source = self.driver.page_source.lower()
+        return self
 
     def logout(self):
         """Logout control."""
-        url_address = self.driver.current_url
+        url_address = self.current_url()
         if 'tutor' in url_address:
             self.tutor_logout()
         elif 'accounts' in url_address:
@@ -424,19 +433,29 @@ class User(Helper):
         try:
             self.wait.until(
                 expect.presence_of_element_located(
-                    (By.ID, 'react-root-container')
+                    (By.ID, 'ox-react-root-container')
                 )
             )
-            if 'tutor' in self.driver.current_url:
-                self.driver.find_element(
-                    By.XPATH, '//a[contains(@href,"dashboard")]'
-                ).click()
+            if 'tutor' in self.current_url():
+                self.find(By.XPATH, '//a[contains(@href,"dashboard")]') \
+                    .click()
                 self.page.wait_for_page_load()
             else:
                 raise HTTPError('Not currently on an OpenStax Tutor webpage:' +
-                                '%s' % self.driver.current_url)
+                                '%s' % self.current_url())
         except Exception as ex:
             raise ex
+
+    def get_course_list(self, closed=False):
+        """Return a list of available courses."""
+        courses = self.find_all(
+            By.CSS_SELECTOR,
+            'div.course-listing-current-section' + ' ' +
+            'div.course-listing-item'
+        )
+        for a, x in enumerate(courses):
+            print('%s : "%s"' % (a, x.get_attribute('data-title')))
+        return courses
 
     def open_user_menu(self):
         """
@@ -457,7 +476,7 @@ class User(Helper):
             )
         ).click()
 
-    def tutor_logout(self):  # NOQA
+    def tutor_logout(self):
         """Tutor logout helper."""
         self.open_user_menu()
         self.wait.until(
@@ -467,12 +486,12 @@ class User(Helper):
         ).click()
         self.page.wait_for_page_load()
 
-    def accounts_logout(self):  # NOQA
+    def accounts_logout(self):
         """OS Accounts logout helper."""
-        self.driver.find_element(By.LINK_TEXT, 'Sign out').click()
+        self.find(By.LINK_TEXT, 'Log out').click()
         self.page.wait_for_page_load()
 
-    def execises_logout(self):  # NOQA
+    def execises_logout(self):
         """Exercises logout helper."""
         wait = WebDriverWait(self.driver, 3)
         try:
@@ -493,43 +512,53 @@ class User(Helper):
 
     def select_course(self, title=None, appearance=None):
         """Select course."""
-        if 'dashboard' not in self.driver.current_url:
+        print('Select course "%s" / "%s"' % (title, appearance))
+        print('Currently at: %s' % self.current_url())
+        if 'dashboard' not in self.current_url():
             # If not at the dashboard, try to load it
+            print('Go to course list')
             self.goto_course_list()
             self.page.wait_for_page_load()
-        if 'dashboard' not in self.driver.current_url:
+        if 'dashboard' not in self.current_url():
             # Only has one course and the user is at the dashboard so return
+            print('Single course; select course complete')
             return
         if title:
             uses_option = 'title'
             course = title
         elif appearance:
             uses_option = 'appearance'
-            course = appearance.lower()
+            course = appearance
         else:
             raise self.LoginError('Unknown course selection "%s"' %
                                   title if title else appearance)
-        self.wait.until(
+        print('//div[@data-%s="%s"]//a' % (uses_option, course))
+        select = self.wait.until(
             expect.element_to_be_clickable(
                 (
                     By.XPATH, '//div[@data-%s="%s"]//a' %
                     (uses_option, course)
                 )
             )
-        ).click()
+        )
+        print('Course: %s - %s' % (title if title else appearance,
+                                   select.get_attribute('href')))
+        select.click()
         self.page.wait_for_page_load()
+        print('Select course complete')
+        return self
 
     def view_reference_book(self):
         """Access the reference book."""
         try:
-            self.driver.find_element(
+            self.find(
                 By.XPATH, '//div/a[contains(@class,"view-reference-guide")]'
             ).click()
             return
         except:
             pass
         self.open_user_menu()
-        self.driver.find_element(
+        self.find(
             By.XPATH, '//li/a[contains(@class,"view-reference-guide")]'
         ).click()
 
@@ -569,10 +598,14 @@ class Teacher(User):
         super(Teacher, self).__init__(existing_driver=existing_driver,
                                       **kwargs)
 
+    def switch_user(self, username):
+        """Switch username during chained actions."""
+        self.username = username
+        return self
+
     def add_assignment(self, assignment, args):
         """Add an assignment."""
-        assign = Assignment()
-        assign.add[assignment](
+        self.assign.add[assignment](
             driver=self.driver,
             name=args['title'],
             description=args['description'] if 'description' in args else '',
@@ -587,8 +620,7 @@ class Teacher(User):
 
     def change_assignment(self, assignment, args):
         """Alter an existing assignment."""
-        assign = Assignment()
-        assign.edit[assignment](
+        self.assign.edit[assignment](
             driver=self.driver,
             name=args['title'],
             description=args['description'],
@@ -603,8 +635,7 @@ class Teacher(User):
 
     def delete_assignment(self, assignment, args):
         """Delete an existing assignment (if available)."""
-        assign = Assignment()
-        assign.remove[assignment](
+        self.assign.remove[assignment](
             driver=self.driver,
             name=args['title'],
             description=args['description'] if 'description' in args else None,
@@ -620,12 +651,12 @@ class Teacher(User):
     def goto_menu_item(self, item):
         """Go to a specific user menu item."""
         print('Enter: goto_menu_item')
-        if 'courses' in self.driver.current_url:
+        if 'courses' in self.current_url():
+            print('Open user menu')
             self.open_user_menu()
+            print('Select menu item %s' % item)
             self.wait.until(
-                expect.element_to_be_clickable(
-                    (By.LINK_TEXT, item)
-                )
+                expect.element_to_be_clickable((By.LINK_TEXT, item))
             ).click()
             self.page.wait_for_page_load()
         print('Exit: goto_menu_item')
@@ -634,17 +665,21 @@ class Teacher(User):
         """Return the teacher to the calendar dashboard."""
         print('Enter: goto_calendar')
         try:
-            self.driver.find_element(
-                By.XPATH, '//a[contains(@href,"calendar")]'
-            ).click()
+            print('Try to return to the calendar')
+            self.find(By.CSS_SELECTOR, 'ul.navbar-nav a.navbar-brand').click()
+            print('Succeeded')
             self.page.wait_for_page_load()
         except:
+            print('Failed, Try to return to the calendar using the Brand')
             try:
-                self.driver.find_element(
-                    By.XPATH, '//a[contains(@class,"navbar-brand")]'
+                self.find(
+                    By.CSS_SELECTOR,
+                    'div.navbar-header a.navbar-brand'
                 ).click()
+                print('Succeeded')
                 self.page.wait_for_page_load()
             except:
+                print('Failed')
                 pass
         print('Exit: goto_calendar')
 
@@ -655,6 +690,7 @@ class Teacher(User):
         timer = 0
         while timer < 10:
             try:
+                print('Wait for forecast load try %s of 10' % (timer + 1))
                 self.wait.until(
                     expect.visibility_of_element_located(
                         (By.CLASS_NAME, 'guide-container')
@@ -684,11 +720,9 @@ class Teacher(User):
     def add_course_section(self, section_name):
         """Add a section to the course."""
         print('Enter: add_course_section')
-        if 'settings' not in self.driver.current_url:
+        if 'settings' not in self.current_url():
             self.goto_course_roster()
-        self.driver.find_element(
-            By.XPATH, '//button[i[contains(@class,"fa-plus")]]'
-        ).click()
+        self.find(By.XPATH, '//button[i[contains(@class,"fa-plus")]]').click()
         self.wait.until(
             expect.visibility_of_element_located(
                 (By.XPATH,
@@ -708,9 +742,7 @@ class Teacher(User):
         print('Enter: get_enrollment_code')
         if 'settings' not in self.driver.current_url:
             self.goto_course_roster()
-        self.driver.find_element(
-            By.XPATH, '//a[text()="%s"]' % section_name
-        ).click()
+        self.find(By.XPATH, '//a[text()="%s"]' % section_name).click()
         self.wait.until(
             expect.element_to_be_clickable(
                 (By.CLASS_NAME, 'show-enrollment-code')
@@ -727,33 +759,35 @@ class Teacher(User):
 
     def get_book_sections(self):
         """Return a list of book sections."""
+        print('Retrieve the book section list')
         self.goto_calendar()
         self.page.wait_for_page_load()
-        self.driver.find_element(By.ID, 'add-assignment').click()
+        self.assign.open_assignment_menu(self.driver)
         self.wait.until(
             expect.element_to_be_clickable(
                 (By.LINK_TEXT, 'Add Reading')
             )
         ).click()
         self.page.wait_for_page_load()
-        selector = self.driver.find_element(By.ID, 'reading-select')
+        selector = self.find(By.ID, 'reading-select')
         Assignment.scroll_to(self.driver, selector)
         sleep(1.0)
         selector.click()
         self.page.wait_for_page_load()
-        for chapter in self.driver.find_elements(By.XPATH,
-                                                 '//a[@href="#" and span]'):
+        for chapter in self.find_all(By.CSS_SELECTOR,
+                                     'div.chapter-heading > a'):
             if chapter.get_attribute('aria-expanded') != 'true':
                 Assignment.scroll_to(self.driver, chapter)
                 sleep(0.25)
                 chapter.click()
-        sections = self.driver.find_elements(
-            By.XPATH,
-            '//div[@class="section"]/span[@class="chapter-section"]'
-        )
+        sections = self.find_all(
+            By.CSS_SELECTOR, 'div.section span.chapter-section')
         section_list = []
+        section_string = ''
         for section in sections:
             section_list.append(section.text)
+            section_string += ' %s' % section.text
+        print('Section options: %s' % section_string)
         self.goto_calendar()
         return section_list
 
@@ -764,13 +798,11 @@ class Teacher(User):
 
     def get_month_year(self):
         """Break a date string into a month year tuple."""
-        calendar_heading = WebDriverWait(self.driver, 3).until(
-            expect.visibility_of_element_located(
-                (By.XPATH,
-                 '//div[contains(@class,"calendar-header-label")]/span')
-            )
-        ).text
-        month, year = calendar_heading.split(' ')
+        calendar_heading = self.find(By.CSS_SELECTOR,
+                                     'div.calendar-header-label')
+        Assignment.scroll_to(self.driver, calendar_heading)
+        calendar_date = calendar_heading.text
+        month, year = calendar_date.split(' ')
         return self.get_month_number(month), int(year)
 
     def rotate_calendar(self, target):
@@ -782,19 +814,19 @@ class Teacher(User):
             return
         cal_month, cal_year = self.get_month_year()
         while cal_year < target_date.year:
-            self.driver.find_element(By.CLASS_NAME, 'fa-caret-right').click()
+            self.find(By.CLASS_NAME, 'fa-caret-right').click()
             sleep(0.2)
             cal_month, cal_year = self.get_month_year()
         while cal_month < target_date.month:
-            self.driver.find_element(By.CLASS_NAME, 'fa-caret-right').click()
+            self.find(By.CLASS_NAME, 'fa-caret-right').click()
             sleep(0.2)
             cal_month, cal_year = self.get_month_year()
         while cal_year > target_date.year:
-            self.driver.find_element(By.CLASS_NAME, 'fa-caret-left').click()
+            self.find(By.CLASS_NAME, 'fa-caret-left').click()
             sleep(0.2)
             cal_month, cal_year = self.get_month_year()
         while cal_month > target_date.month:
-            self.driver.find_element(By.CLASS_NAME, 'fa-caret-left').click()
+            self.find(By.CLASS_NAME, 'fa-caret-left').click()
             sleep(0.2)
             cal_month, cal_year = self.get_month_year()
 
@@ -828,9 +860,7 @@ class Student(User):
         if 'courses' in self.driver.current_url:
             self.open_user_menu()
             self.wait.until(
-                expect.element_to_be_clickable(
-                    (By.LINK_TEXT, item)
-                )
+                expect.element_to_be_clickable((By.LINK_TEXT, item))
             ).click()
             self.page.wait_for_page_load()
         print('Exit: goto_menu_item')
@@ -841,12 +871,10 @@ class Student(User):
 
     def work_assignment(self):
         """Work an assignment."""
-        if '/courses/' not in self.driver.current_url:
-            self.driver.find_element(By.XPATH, '//a[contains(@class,"na")]')
-        self.driver.wait.until(
-            expect.element_to_be_clickable(
-                (By.LINK_TEXT, 'All Past Work')
-            )
+        if '/courses/' not in self.current_url():
+            self.find(By.XPATH, '//a[contains(@class,"na")]')
+        self.wait.until(
+            expect.element_to_be_clickable((By.LINK_TEXT, 'All Past Work'))
         )
         raise NotImplementedError(inspect.currentframe().f_code.co_name)
 
@@ -854,9 +882,7 @@ class Student(User):
         """View work for previous weeks."""
         self.goto_dashboard()
         self.wait.until(
-            expect.element_to_be_clickable(
-                (By.LINK_TEXT, 'All Past Work')
-            )
+            expect.element_to_be_clickable((By.LINK_TEXT, 'All Past Work'))
         ).click()
         self.page.wait_for_page_load()
 
@@ -893,7 +919,7 @@ class Student(User):
             self.page.wait_for_page_load()
         else:
             try:
-                sections = self.driver.find_elements(
+                sections = self.find_all(
                     By.XPATH,
                     '//button[contains(@aria-describedby,' +
                     '"progress-bar-tooltip-")]'
@@ -937,17 +963,17 @@ class Student(User):
         wt = self.wait_time
         try:
             self.change_wait_time(3)
-            text_block = self.driver.find_element(By.XPATH, '//textarea')
+            text_block = self.find(By.XPATH, '//textarea')
             self.change_wait_time(wt)
             print('Enter free response')
             Assignment.send_keys(self.driver, text_block, text)
-            self.driver.find_element(By.CLASS_NAME, 'continue').click()
+            self.find(By.CLASS_NAME, 'continue').click()
         except Exception:
             self.change_wait_time(wt)
             print('Skip free response')
         finally:
             self.page.wait_for_page_load()
-        answers = self.driver.find_elements(By.CLASS_NAME, 'answer-letter')
+        answers = self.find_all(By.CLASS_NAME, 'answer-letter')
         self.sleep(0.8)
         rand = randint(0, len(answers) - 1)
         answer = chr(ord('a') + rand)
