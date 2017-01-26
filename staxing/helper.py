@@ -31,7 +31,7 @@ try:
 except ImportError:
     from page_load import SeleniumWait as Page
 
-__version__ = '0.0.31'
+__version__ = '0.0.32'
 
 
 class Helper(object):
