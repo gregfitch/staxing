@@ -13,6 +13,7 @@ from selenium.webdriver.support import expected_conditions as expect
 from selenium.webdriver.support.ui import WebDriverWait
 
 __version__ = '0.0.35'
+
 try:
     from staxing.page_load import SeleniumWait as Page
 except ImportError:
