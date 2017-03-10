@@ -1,6 +1,6 @@
-# :+1::tada: Thanks for Contributing! :tada::+1:
+# Thanks for Contributing!
 
 See [openstax/CONTRIBUTING.md](https://github.com/openstax/napkin-notes/CONTRIBUTING.md) for more information!
 
-> Replace this text with repository-specific guildelines here.
-> See [tutor-js/CONTRIBUTING.md](https://github.com/openstax/tutor-js/blob/master/CONTRIBUTING.md) as an example (or [other repositories](https://github.com/search?q=org%3Aopenstax+org%3Aconnexions+"CONTRIBUTING.md"&type=Code)
+> Create a branch for the code change, named appropriately, and make a pull request when ready.
+> QA will review the changes, merge the code when it is complete and delete the branch.
