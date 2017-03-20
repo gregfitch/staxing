@@ -340,7 +340,7 @@ class User(Helper):
         """
         Tutor login control.
 
-        If parameters are not passed, login using the class values.
+        If parameters are not passed, log in using the class values.
         Branching to deal with standard or compact screen widths
 
         username (string): website username
@@ -354,24 +354,9 @@ class User(Helper):
         self.get(url_address)
         self.page.wait_for_page_load()
         if 'tutor' in url_address:
-            # check to see if the screen width is normal or condensed
-            if self.get_window_size('width') <= self.CONDENSED_WIDTH:
-                # get small-window menu toggle
-                is_collapsed = self.find(By.CSS_SELECTOR,
-                                         'button.navbar-toggle')
-                # check if the menu is collapsed and, if yes, open it
-                try:
-                    WebDriverWait(self.driver, 2).until(
-                        expect.visibility_of_element_located(
-                            By.XPATH,
-                            '//a[contains(@href,"/accounts/login")]'
-                        )
-                    )
-                except:  # closed menu,
-                    is_collapsed.click()
             self.wait.until(
                 expect.visibility_of_element_located(
-                    (By.LINK_TEXT, 'Log in')
+                    (By.CSS_SELECTOR, 'a.btn')
                 )
             ).click()
             self.page.wait_for_page_load()
@@ -387,20 +372,20 @@ class User(Helper):
             )
         # enter the username and password
         self.find(By.ID, 'login_username_or_email').send_keys(username)
-        self.find(By.XPATH, '//input[@value="Next"]').click()
+        self.find(By.CSS_SELECTOR, '.primary').click()
         self.find(By.ID, 'login_password').send_keys(password)
-        self.find(By.XPATH, '//input[@value="Login"]').click()
+        self.find(By.CSS_SELECTOR, '.primary').click()
         self.page.wait_for_page_load()
         # check if a password change is required
         if 'reset your password' in self.driver.page_source.lower():
             try:
-                self.find(By.ID, 'reset_password_password') \
+                self.find(By.ID, 'set_password_password') \
                     .send_keys(self.password)
-                self.find(By.ID, 'reset_password_password_confirmation') \
+                self.find(By.ID, 'set_password_password_confirmation') \
                     .send_keys(self.password)
-                self.find(By.XPATH, '//input[@value="Reset Password"]').click()
+                self.find(By.CSS_SELECTOR, '.primary').click()
                 self.sleep(1)
-                self.find(By.XPATH, '//input[@value="Continue"]').click()
+                self.find(By.CSS_SELECTOR, '.primary').click()
             except Exception as e:
                 raise e
         self.page.wait_for_page_load()
@@ -437,8 +422,7 @@ class User(Helper):
                 )
             )
             if 'tutor' in self.current_url():
-                self.find(By.XPATH, '//a[contains(@href,"dashboard")]') \
-                    .click()
+                self.find(By.CSS_SELECTOR, '.ui-brand-logo').click()
                 self.page.wait_for_page_load()
             else:
                 raise HTTPError('Not currently on an OpenStax Tutor webpage:' +
@@ -481,14 +465,14 @@ class User(Helper):
         self.open_user_menu()
         self.wait.until(
             expect.visibility_of_element_located(
-                (By.XPATH, '//input[@aria-label="Log Out"]')
+                (By.CSS_SELECTOR, '[type="submit"]')
             )
         ).click()
         self.page.wait_for_page_load()
 
     def accounts_logout(self):
         """OS Accounts logout helper."""
-        self.find(By.LINK_TEXT, 'Log out').click()
+        self.find(By.CSS_SELECTOR, '.sign-out').click()
         self.page.wait_for_page_load()
 
     def execises_logout(self):
@@ -502,13 +486,13 @@ class User(Helper):
             ).click()
             wait.until(
                 expect.element_to_be_clickable(
-                    (By.XPATH, '//input[@aria-label="Log Out"]')
+                    (By.CSS_SELECTOR, '[type="submit"]')
                 )
             ).click()
             self.page.wait_for_page_load()
         except NoSuchElementException:
             # Different page, but uses the same logic and link text
-            self.accounts_logout()
+            self.find(By.CSS_SELECTOR, '[data-method]').click()
 
     def select_course(self, title=None, appearance=None):
         """Select course."""
@@ -536,13 +520,14 @@ class User(Helper):
         select = self.wait.until(
             expect.element_to_be_clickable(
                 (
-                    By.XPATH, '//div[@data-%s="%s"]//a' %
-                    (uses_option, course)
+                    By.XPATH,
+                    '//div[@data-%s="%s"]//a' % (uses_option, course)
                 )
             )
         )
         print('Course: %s - %s' % (title if title else appearance,
                                    select.get_attribute('href')))
+        self.sleep(1)
         select.click()
         self.page.wait_for_page_load()
         print('Select course complete')
