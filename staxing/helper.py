@@ -562,6 +562,10 @@ class User(Helper):
             By.XPATH, '//li/a[contains(@class,"view-reference-guide")]'
         ).click()
 
+    def scroll_to(self, location):
+        Assignment.scroll_to(self.driver, location)
+        return self
+
 
 class LoginError(Exception):
     """Login error exception."""
