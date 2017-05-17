@@ -225,7 +225,9 @@ class Assignment(object):
         """Open the Add Assignment menu if it is closed."""
         print('Open the assignment menu')
         assignment_menu = driver.find_element(
-            By.CSS_SELECTOR, 'button.sidebar-toggle')
+            By.CSS_SELECTOR,
+            'button'
+        )
         Assignment.scroll_to(driver, assignment_menu)
         color = assignment_menu.value_of_css_property('background-color')
         if not color.lower() == 'rgba(153, 153, 153, 1)':
@@ -1006,17 +1008,46 @@ if __name__ == '__main__':
     print('Add a new reading')
     driver.find_element(By.LINK_TEXT, 'Add Reading').click()
     print('Test date/time options')
+    start = datetime.date.today() + datetime.timedelta(days=10)
     test_periods = {
-        '1st': ('2/10/2017', '2/15/2017'),
-        '2nd': ('2/12/2017', '2/17/2017'),
-        '3rd': (('2/14/2017', '4:00 am'), '2/19/2017'),
-        'all': ('2/11/2017', '2/14/2017'),
+        '1st': (
+            start.strftime('%m/%d/%Y'),
+            (start + datetime.timedelta(days=5)).strftime('%m/%d/%Y')
+        ),
+        '2nd': (
+            (start + datetime.timedelta(days=2)).strftime('%m/%d/%Y'),
+            (start + datetime.timedelta(days=7)).strftime('%m/%d/%Y')
+        ),
+        '3rd': (
+            ((start + datetime.timedelta(days=4)).strftime('%m/%d/%Y'),
+             '4:00 am'),
+            (start + datetime.timedelta(days=9)).strftime('%m/%d/%Y')
+        ),
+        'all': (
+            (start + datetime.timedelta(days=1)).strftime('%m/%d/%Y'),
+            (start + datetime.timedelta(days=6)).strftime('%m/%d/%Y')
+        ),
     }
     periods = {
-        '1st': ('2/12/2017', '2/17/2017'),
-        '2nd': (('2/14/2017', '8:00a'), ('2/19/2017', '800p')),
-        '3rd': ('2/16/2017', ('2/21/2017', '8:00 pm')),
-        'test': ('2/20/2017', '2/22/2017'),
+        '1st': (
+            start.strftime('%m/%d/%Y'),
+            (start + datetime.timedelta(days=5)).strftime('%m/%d/%Y')
+        ),
+        '2nd': (
+            ((start + datetime.timedelta(days=2)).strftime('%m/%d/%Y'),
+             '8:00a'),
+            ((start + datetime.timedelta(days=7)).strftime('%m/%d/%Y'),
+             '800p')
+        ),
+        '3rd': (
+            (start + datetime.timedelta(days=6)).strftime('%m/%d/%Y'),
+            ((start + datetime.timedelta(days=10)).strftime('%m/%d/%Y'),
+             '8:00 pm')
+        ),
+        'test': (
+            (start + datetime.timedelta(days=10)).strftime('%m/%d/%Y'),
+            (start + datetime.timedelta(days=14)).strftime('%m/%d/%Y')
+        ),
         # 'all': (('2/11/2017', '1000a'), ('2/14/2017', '1000p')),
     }
     print('Make a reading assignment')

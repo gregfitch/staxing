@@ -14,7 +14,7 @@ from requests import HTTPError
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
 from selenium.common.exceptions import WebDriverException
-from selenium.webdriver.chrome import service
+from selenium.webdriver.chrome import options, service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.webdriver.support import expected_conditions as expect
@@ -31,7 +31,7 @@ try:
 except ImportError:
     from page_load import SeleniumWait as Page
 
-__version__ = '0.0.33'
+__version__ = '0.0.34'
 
 
 class Helper(object):
@@ -59,14 +59,14 @@ class Helper(object):
                  capabilities=None,
                  pasta_user=None,
                  wait_time=DEFAULT_WAIT_TIME,
-                 opera_driver='',
+                 remote_driver='',
                  existing_driver=None,
                  **kwargs):
         """Class constructor."""
         if driver_type == 'saucelabs' and pasta_user is None:
             raise TypeError('A Sauce Labs user is required for remote testing')
         self.pasta = pasta_user
-        self.opera_driver = opera_driver
+        self.remote_driver = remote_driver
         if existing_driver:
             self.driver = existing_driver
         else:
@@ -78,7 +78,8 @@ class Helper(object):
         self.wait = WebDriverWait(self.driver, wait_time)
         self.wait_time = wait_time
         self.page = Page(self.driver, self.wait_time)
-        super(Helper, self).__init__(**kwargs)
+        # super(Helper, self).__init__(**kwargs)
+        super(Helper, self).__init__()
 
     def __enter__(self):
         """Entry point."""
@@ -134,6 +135,16 @@ class Helper(object):
         wait (int): standard time, in seconds, to wait for Selenium commands
         opera_driver (string): Chromium location
         """
+        option_set = options.Options()
+        option_set.add_argument("disable-infobars")
+        option_set.add_experimental_option(
+            'prefs', {
+                'credentials_enable_service': False,
+                'profile': {
+                    'password_manager_enabled': False
+                }
+            }
+        )
         if pasta_user:
             driver = 'saucelabs'
         elif driver_type:
@@ -143,31 +154,37 @@ class Helper(object):
         try:
             return {
                 'firefox': lambda: webdriver.Firefox(),
-                'chrome': lambda: webdriver.Chrome(),
+                'chrome': lambda: webdriver.Chrome(
+                    chrome_options=option_set),
                 'ie': lambda: webdriver.Ie(),
-                'opera': lambda: self.start_opera(self.opera_driver),
+                'opera': lambda: self.start_remote(
+                    driver,
+                    self.remote_driver),
                 'phantomjs': lambda: webdriver.PhantomJS(),
                 # 'safari': lambda: webdriver.Safari(),
                 'saucelabs': lambda: webdriver.Remote(
                     command_executor=(
                         'http://%s:%s@ondemand.saucelabs.com:80/wd/hub' %
                         (pasta_user.get_user(), pasta_user.get_access_key())),
-                    desired_capabilities=capabilities
-                ),
+                    desired_capabilities=capabilities),
             }[driver]()
         except WebDriverException as err:
             raise FileNotFoundError(err)
         except Exception as err:
             raise err
 
-    def start_opera(self, location):
-        """Opera initiator."""
-        webdriver_service = service.Service(location)
-        webdriver_service.start()
-        return webdriver.Remote(
-            webdriver_service.service_url,
-            DesiredCapabilities.OPERA.copy()
+    def start_remote(self, rtype, location, args={}):
+        """Remote initiator."""
+        print(args)
+        webdriver_service = service.Service(
+            executable_path=location,
+            port=9222,
+            service_args=['headless', 'disable-gpu', 'disable-infobars']
         )
+        webdriver_service.start()
+        capabilities = DesiredCapabilities.OPERA if rtype is 'opera' else \
+            DesiredCapabilities.CHROME.copy()
+        return webdriver.Remote(webdriver_service.service_url, capabilities)
 
     def change_wait_time(self, new_wait):
         """Change the max action wait time."""
@@ -431,14 +448,32 @@ class User(Helper):
             raise ex
 
     def get_course_list(self, closed=False):
-        """Return a list of available courses."""
+        """
+        Return a list of available courses.
+
+        ToDo: go to a closed course
+        """
+        print(self.current_url())
+        print(
+            self.driver
+            .find_element(By.ID, 'ox-react-root-container')
+            .get_attribute('outerHTML')
+        )
+        self.wait.until(
+            expect.visibility_of_element_located(
+                (By.TAG_NAME, 'h1')
+            )
+        )
         courses = self.find_all(
             By.CSS_SELECTOR,
-            'div.course-listing-current-section' + ' ' +
-            'div.course-listing-item'
+            '.course-listing-current-section' + ' ' +
+            '.course-listing-item'
         )
-        for a, x in enumerate(courses):
-            print('%s : "%s"' % (a, x.get_attribute('data-title')))
+        if len(courses) == 0:
+            print('No courses found: %s' % courses)
+            return []
+        for position, course in enumerate(courses):
+            print('%s : "%s"' % (position, course.get_attribute('data-title')))
         return courses
 
     def open_user_menu(self):
@@ -601,8 +636,8 @@ class Teacher(User):
             periods=args['periods'],
             state=args['status'],
             url=args['url'] if 'url' in args else None,
-            reading_list=args['reading_list'] if 'reading_list' in args else
-            None,
+            reading_list=args['reading_list'] if 'reading_list' in args
+            else None,
             problems=args['problems'] if 'problems' in args else None,
             feedback=args['feedback'] if 'feedback' in args else None
         )
@@ -788,7 +823,7 @@ class Teacher(User):
     def get_month_year(self):
         """Break a date string into a month year tuple."""
         calendar_heading = self.find(By.CSS_SELECTOR,
-                                     'div.calendar-header-label')
+                                     '.calendar-header-label')
         Assignment.scroll_to(self.driver, calendar_heading)
         calendar_date = calendar_heading.text
         month, year = calendar_date.split(' ')

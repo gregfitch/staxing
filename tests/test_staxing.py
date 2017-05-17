@@ -8,13 +8,14 @@ import unittest
 
 from random import randint
 from selenium.common.exceptions import NoSuchElementException
+# from selenium.webdriver import Chrome
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as expect
 from selenium.webdriver.support.ui import WebDriverWait
 from staxing.assignment import Assignment
 from staxing.helper import Helper, Teacher, Student, Admin, ContentQA, User
 
-__version__ = '0.0.5'
+__version__ = '0.0.6'
 TESTS = os.getenv(
     'CASELIST',
     str([
@@ -51,7 +52,7 @@ class TestStaxingHelper(unittest.TestCase):
         new_size = {'width': 1300, 'height': 700}
         assert(self.helper.driver.get_window_size() == new_size), \
             'Window not resized: %s' % str(new_size)
-        self.helper.driver.set_window_size(200, 200)
+        self.helper.set_window_size(200, 200)
         new_size = {'width': 200, 'height': 200}
         self.helper.set_window_size(maximize=True)
         assert(self.helper.driver.get_window_size() != new_size), \
@@ -75,10 +76,17 @@ class TestStaxingHelper(unittest.TestCase):
         formatted = today.strftime('%Y-%m-%d')
         in_12_formatted = today + datetime.timedelta(days=12)
         in_12_formatted = in_12_formatted.strftime('%Y%m%d')
+
         assert(self.helper.date_string() == today.strftime('%m/%d/%Y')), \
-            'Default failed: %s != %s' % (self.helper.date_string(), today)
+            'Default failed: %s != %s' % (
+                self.helper.date_string(),
+                today
+        )
         assert(self.helper.date_string(5) == str(in_5)), \
-            'Set +5 failed: %s != %s' % (self.helper.date_string(5), in_5)
+            'Set +5 failed: %s != %s' % (
+                self.helper.date_string(5),
+                in_5
+        )
         assert(self.helper.date_string(str_format='%Y-%m-%d') == formatted), \
             'Formatted failed: %s != %s' % (
                 self.helper.date_string(str_format='%Y-%m-%d'),
@@ -104,6 +112,7 @@ class TestStaxingHelper(unittest.TestCase):
         self.helper.driver.set_window_size(new_width, new_height)
         current_size = self.helper.driver.get_window_size()
         helper_size = self.helper.get_window_size()
+
         assert(helper_size == current_size), \
             'Window size is incorrect: %s != %s' % \
             (helper_size, current_size)
@@ -138,7 +147,9 @@ class TestStaxingUser(unittest.TestCase):
     def setUp(self):
         """Pretest settings."""
         self.user = User('', '', '')
+        print(self.user.driver.get_window_size())
         self.user.set_window_size(height=700, width=1200)
+        print(self.user.driver.get_window_size())
         self.server = ''.join(('https://', os.getenv('SERVER_URL')))
         self.login = os.getenv('STUDENT_USER_MULTI')
         self.password = os.getenv('STUDENT_PASSWORD')
@@ -146,7 +157,7 @@ class TestStaxingUser(unittest.TestCase):
     def tearDown(self):
         """Test destructor."""
         try:
-            self.user.driver.quit()
+            self.user.delete()
         except:
             pass
 
@@ -216,8 +227,9 @@ class TestStaxingUser(unittest.TestCase):
         """Select a course by its appearance."""
         self.user.login(self.server, self.login, self.password)
         courses = self.user.get_course_list()
-        course_number = 0 if len(courses) <= 1 \
+        course_number = 0 if len(courses) == 1 \
             else randint(1, len(courses)) - 1
+        assert(course_number >= 0), 'No courses found.'
         appearance = courses[course_number].get_attribute('data-appearance')
         appearance_courses = self.user.find_all(
                 By.XPATH,
@@ -311,11 +323,11 @@ class TestStaxingUser(unittest.TestCase):
 class TestStaxingTutorTeacher(unittest.TestCase):
     """Staxing case tests."""
 
-    book_sections = Teacher(use_env_vars=True) \
+    """book_sections = Teacher(use_env_vars=True) \
         .switch_user(os.getenv('TEACHER_USER_MULTI')) \
         .login() \
         .select_course(title='Physics with Courseware Review') \
-        .get_book_sections()
+        .get_book_sections()"""
 
     def setUp(self):
         """Pretest settings."""
@@ -325,12 +337,12 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         self.teacher.set_window_size(height=700, width=1200)
         self.teacher.login()
         self.teacher.select_course(title='Physics with Courseware Review')
-        self.book_sections = self.__class__.book_sections
+        # self.book_sections = self.__class__.book_sections
 
     def tearDown(self):
         """Test destructor."""
         try:
-            self.teacher.driver.quit()
+            self.teacher.delete()
         except:
             pass
 
@@ -349,7 +361,7 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         end_time_2 = '11:59 pm'
         start_date_3 = self.teacher.date_string(day_delta=left + 2)
         end_date_3 = self.teacher.date_string(day_delta=right + 2)
-        # reading_options = self.teacher.get_book_sections()
+        self.book_sections = self.teacher.get_book_sections()
         reading_start = randint(0, (len(self.book_sections) - 1))
         reading_end = reading_start + randint(1, 5)
         reading_list = self.book_sections[reading_start:reading_end]
@@ -392,7 +404,7 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         end_date_1 = self.teacher.date_string(day_delta=right)
         start_date_2 = self.teacher.date_string(day_delta=left + 1)
         end_date_2 = self.teacher.date_string(day_delta=right + 1)
-        # reading_options = self.teacher.get_book_sections()
+        self.book_sections = self.teacher.get_book_sections()
         reading_start = randint(0, (len(self.book_sections) - 1))
         reading_end = reading_start + randint(1, 5)
         reading_list = self.book_sections[reading_start:reading_end]
@@ -434,7 +446,7 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         end_date_2 = self.teacher.date_string(day_delta=right + 1)
         start_date_3 = self.teacher.date_string(day_delta=left + 2)
         end_date_3 = self.teacher.date_string(day_delta=right + 2)
-        # reading_options = self.teacher.get_book_sections()
+        self.book_sections = self.teacher.get_book_sections()
         reading_start = randint(0, (len(self.book_sections) - 1))
         reading_end = reading_start + randint(1, 5)
         reading_list = self.book_sections[reading_start:reading_end]
@@ -474,7 +486,7 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         right = left + randint(1, 10)
         start_date_1 = self.teacher.date_string(day_delta=left)
         end_date_1 = self.teacher.date_string(day_delta=right)
-        # reading_options = self.teacher.get_book_sections()
+        self.book_sections = self.teacher.get_book_sections()
         reading_start = randint(0, (len(self.book_sections) - 1))
         reading_end = reading_start + randint(1, 5)
         reading_list = self.book_sections[reading_start:reading_end]
@@ -511,7 +523,7 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         right = left + randint(1, 10)
         start_date_1 = self.teacher.date_string(day_delta=left)
         end_date_1 = self.teacher.date_string(day_delta=right)
-        # reading_options = self.teacher.get_book_sections()
+        self.book_sections = self.teacher.get_book_sections()
         reading_start = randint(0, (len(self.book_sections) - 1))
         reading_end = reading_start + randint(1, 5)
         reading_list = self.book_sections[reading_start:reading_end]
@@ -649,7 +661,7 @@ class TestStaxingConceptCoachTeacher(unittest.TestCase):
     def tearDown(self):
         """Test destructor."""
         try:
-            self.teacher.driver.quit()
+            self.teacher.delete()
         except:
             pass
 
@@ -670,7 +682,7 @@ class TestStaxingTutorStudent(unittest.TestCase):
     def tearDown(self):
         """Test destructor."""
         try:
-            self.student.driver.quit()
+            self.student.delete()
         except:
             pass
 
@@ -691,7 +703,7 @@ class TestStaxingConceptCoachStudent(unittest.TestCase):
     def tearDown(self):
         """Test destructor."""
         try:
-            self.student.driver.quit()
+            self.student.delete()
         except:
             pass
 
@@ -712,7 +724,7 @@ class TestStaxingAdmin(unittest.TestCase):
     def tearDown(self):
         """Test destructor."""
         try:
-            self.admin.driver.quit()
+            self.admin.delete()
         except:
             pass
 
@@ -733,7 +745,7 @@ class TestStaxingContentQA(unittest.TestCase):
     def tearDown(self):
         """Test destructor."""
         try:
-            self.content.driver.quit()
+            self.content.delete()
         except:
             pass
 
