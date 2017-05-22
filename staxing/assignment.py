@@ -1,4 +1,4 @@
-﻿"""Assignment helper functions for Selenium testing."""
+"""Assignment helper functions for Selenium testing."""
 
 import calendar
 import datetime
@@ -230,6 +230,7 @@ class Assignment(object):
         )
         Assignment.scroll_to(driver, assignment_menu)
         color = assignment_menu.value_of_css_property('background-color')
+        print('Current menu color: %s' % color.lower())
         if not color.lower() == 'rgba(153, 153, 153, 1)':
             # background isn't gray so the toggle is still closed
             assignment_menu.click()
@@ -336,16 +337,16 @@ class Assignment(object):
                 opens_on, opens_at = opens_on
             if isinstance(closes_on, tuple):
                 closes_on, closes_at = closes_on
-            self.assign_date(driver=driver, date=opens_on,
-                             is_all=True, target='open')
             self.assign_date(driver=driver, date=closes_on,
                              is_all=True, target='due')
-            if opens_at:
-                self.assign_time(driver=driver, time=opens_at,
-                                 is_all=True, target='open')
             if closes_at:
                 self.assign_time(driver=driver, time=closes_at,
                                  is_all=True, target='due')
+            self.assign_date(driver=driver, date=opens_on,
+                             is_all=True, target='open')
+            if opens_at:
+                self.assign_time(driver=driver, time=opens_at,
+                                 is_all=True, target='open')
             return
         # or locate important elements for each period/section
         options = {}
@@ -388,11 +389,11 @@ class Assignment(object):
                 closes_on, closes_at = closes_on
             self.assign_date(driver=driver, date=closes_on,
                              option=options[period], target='due')
-            self.assign_date(driver=driver, date=opens_on,
-                             option=options[period], target='open')
             if closes_at:
                 self.assign_time(driver=driver, time=closes_at,
                                  option=options[period], target='due')
+            self.assign_date(driver=driver, date=opens_on,
+                             option=options[period], target='open')
             if opens_at:
                 self.assign_time(driver=driver, time=opens_at,
                                  option=options[period], target='open')
@@ -450,7 +451,7 @@ class Assignment(object):
             By.XPATH,
             '//div[@data-chapter-section="%s"]/a' % chapter
         )
-        if (data_chapter.get_attribute('aria-expanded')) == 'false':
+        if (data_chapter.get_attribute('aria-expanded')).lower() == 'false':
             data_chapter.click()
 
     def select_sections(self, driver, chapters):
@@ -500,7 +501,7 @@ class Assignment(object):
                                  'ch'
         status:      string    - 'publish', 'cancel', or 'draft'
         """
-        print('Creating a new Reading')
+        print('Creating a new Reading: %s' % title)
         self.open_assignment_menu(driver)
         driver.find_element(By.LINK_TEXT, 'Add Reading').click()
         time.sleep(1)
@@ -730,7 +731,7 @@ class Assignment(object):
         status:      string    - 'publish', 'cancel', or 'draft'
         feedback:    string    - 'immediate', 'non-immediate'
         """
-        print('Creating a new Homework')
+        print('Creating a new Homework: %s' % title)
         self.open_assignment_menu(driver)
         driver.find_element(By.LINK_TEXT, 'Add Homework').click()
         wait = WebDriverWait(driver, Assignment.WAIT_TIME)
@@ -783,7 +784,7 @@ class Assignment(object):
         assignment_url:    string      - website name
         status:      string    - 'publish', 'cancel', or 'draft'
         """
-        print('Creating a new External Assignment')
+        print('Creating a new External Assignment: %s' % title)
         self.open_assignment_menu(driver)
         driver.find_element(By.LINK_TEXT, 'Add External Assignment').click()
         time.sleep(1)
@@ -831,7 +832,7 @@ class Assignment(object):
                                           date format is 'MM/DD/YYYY'
         status:      string    - 'publish', 'cancel', or 'draft'
         """
-        print('Creating a new Event')
+        print('Creating a new Event: %s' % title)
         self.open_assignment_menu(driver)
         driver.find_element(By.LINK_TEXT, 'Add Event').click()
         time.sleep(1)
@@ -866,55 +867,59 @@ class Assignment(object):
     def change_reading(self, driver, title, description='', periods={},
                        readings=[], status=DRAFT):
         """Edit a reading assignment."""
+        print('Change Reading: %s' % title)
         raise NotImplementedError(inspect.currentframe().f_code.co_name)
 
     def change_homework(self, driver, title, description, periods, problems,
                         feedback, status):
         """Edit a homework assignment."""
+        print('Change Homework: %s' % title)
         raise NotImplementedError(inspect.currentframe().f_code.co_name)
 
     def change_external(self, driver, title, description, periods,
                         assignment_url, status):
         """Edit an external assignment."""
+        print('Change External: %s' % title)
         raise NotImplementedError(inspect.currentframe().f_code.co_name)
 
     def change_event(self, driver, title, description, periods, status):
         """Edit an event."""
+        print('Change Event: %s' % title)
         raise NotImplementedError(inspect.currentframe().f_code.co_name)
 
     def delete_reading(self, driver, title, description, periods, readings,
                        status):
         """Delete a reading assignment."""
+        print('Delete Reading: %s' % title)
         wait = WebDriverWait(driver, Assignment.WAIT_TIME * 4)
         wait.until(
             expect.visibility_of_element_located(
-                (By.XPATH, '//ul/a[contains(@class,"navbar-brand")]')
+                (By.CSS_SELECTOR, '.course-name')
             )
-        ).click()
+        )  # .click()
         due_date = ''
         for period in periods:
             _, due_date = periods[period]
             break
+        print('Currently at: %s' % driver.current_url)
         url = driver.current_url.split('/')
-        print(url)
         date = due_date.split('/')
         temp = []
         temp.append(date[2])
         temp.append(date[0])
         temp.append(date[1])
         date = '-'.join(temp)
-        print(url)
+        print('URL segments: %s' % str(url))
         url.append('month')
         url.append(date)
-        print(url)
         url = '/'.join(url)
-        print(url)
+        print('Rebuit URL: %s' % str(url))
         driver.get(url)
         page = Page(driver, Assignment.WAIT_TIME)
         page.wait_for_page_load()
         wait.until(
             expect.presence_of_element_located(
-                (By.XPATH, '//a[label[text()="%s"]]' % title)
+                (By.XPATH, '//a[div[label[text()="%s"]]]' % title)
             )
         ).click()
         time.sleep(0.3)
@@ -940,7 +945,8 @@ class Assignment(object):
     def delete_homework(self, driver, title, description, periods, problems,
                         feedback, status):
         """Delete a homework assignment."""
-        self.remove[Assignment.READING](
+        print('Delete Homework: %s' % title)
+        self.remove[Assignment.HOMEWORK](
             driver=driver,
             title=title,
             description=None,
@@ -952,7 +958,8 @@ class Assignment(object):
     def delete_external(self, driver, title, description, periods,
                         assignment_url, status):
         """Delete an external assignment."""
-        self.remove[Assignment.READING](
+        print('Delete External: %s' % title)
+        self.remove[Assignment.EXTERNAL](
             driver=driver,
             title=title,
             description=None,
@@ -963,7 +970,8 @@ class Assignment(object):
 
     def delete_event(self, driver, title, description, periods, status):
         """Delete an event."""
-        self.remove[Assignment.READING](
+        print('Delete Event: %s' % title)
+        self.remove[Assignment.EVENT](
             driver=driver,
             title=title,
             description=None,
