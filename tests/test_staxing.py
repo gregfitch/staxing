@@ -9,7 +9,6 @@ import unittest
 
 from random import randint
 from selenium.common.exceptions import NoSuchElementException
-# from selenium.webdriver import Chrome
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.remote_connection import LOGGER
 from selenium.webdriver.support import expected_conditions as expect
@@ -326,15 +325,16 @@ class TestStaxingUser(unittest.TestCase):
 class TestStaxingTutorTeacher(unittest.TestCase):
     """Staxing case tests."""
 
-    book_sections = Teacher(use_env_vars=True, driver='headlesschrome') \
+    section_driver = Teacher(use_env_vars=True) \
         .switch_user(os.getenv('TEACHER_USER_MULTI')) \
         .login() \
-        .select_course(title='Physics with Courseware Review') \
-        .get_book_sections()
+        .select_course(title='Physics with Courseware Review')
+    book_sections = section_driver.get_book_sections()
+    section_driver.delete()
 
     def setUp(self):
         """Pretest settings."""
-        self.teacher = Teacher(use_env_vars=True)
+        self.teacher = Teacher(use_env_vars=True, driver='headlesschrome')
         self.teacher.username = os.getenv('TEACHER_USER_MULTI',
                                           self.teacher.username)
         self.teacher.set_window_size(height=700, width=1200)
@@ -353,7 +353,6 @@ class TestStaxingTutorTeacher(unittest.TestCase):
     def test_add_reading_assignment_individual_publish_301(self):
         """Build reading assignments."""
         # Reading, individual periods, publish
-        assert(False), 'check load-in'
 
         assignment_title = 'Reading-%s' % Assignment.rword(5)
         left = randint(0, 20)
