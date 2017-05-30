@@ -14,7 +14,7 @@ from requests import HTTPError
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
 from selenium.common.exceptions import WebDriverException
-from selenium.webdriver.chrome import service
+from selenium.webdriver.chrome import options, service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.webdriver.support import expected_conditions as expect
@@ -31,7 +31,7 @@ try:
 except ImportError:
     from page_load import SeleniumWait as Page
 
-__version__ = '0.0.33'
+__version__ = '0.0.34'
 
 
 class Helper(object):
@@ -43,6 +43,7 @@ class Helper(object):
         'android': DesiredCapabilities.ANDROID,
         'chrome': DesiredCapabilities.CHROME,
         'firefox': DesiredCapabilities.FIREFOX,
+        'headlesschrome': DesiredCapabilities.CHROME,
         'htmlunit': DesiredCapabilities.HTMLUNIT,
         'htmlunitwithjs': DesiredCapabilities.HTMLUNITWITHJS,
         'internetexplorer': DesiredCapabilities.INTERNETEXPLORER,
@@ -50,7 +51,6 @@ class Helper(object):
         'iphone': DesiredCapabilities.IPHONE,
         'microsoftedge': DesiredCapabilities.EDGE,
         'opera': DesiredCapabilities.OPERA,
-        'phantomjs': DesiredCapabilities.PHANTOMJS,
         'safari': DesiredCapabilities.SAFARI,
     }
 
@@ -59,14 +59,14 @@ class Helper(object):
                  capabilities=None,
                  pasta_user=None,
                  wait_time=DEFAULT_WAIT_TIME,
-                 opera_driver='',
+                 remote_driver='',
                  existing_driver=None,
                  **kwargs):
         """Class constructor."""
         if driver_type == 'saucelabs' and pasta_user is None:
             raise TypeError('A Sauce Labs user is required for remote testing')
         self.pasta = pasta_user
-        self.opera_driver = opera_driver
+        self.remote_driver = remote_driver
         if existing_driver:
             self.driver = existing_driver
         else:
@@ -78,7 +78,8 @@ class Helper(object):
         self.wait = WebDriverWait(self.driver, wait_time)
         self.wait_time = wait_time
         self.page = Page(self.driver, self.wait_time)
-        super(Helper, self).__init__(**kwargs)
+        # super(Helper, self).__init__(**kwargs)
+        super(Helper, self).__init__()
 
     def __enter__(self):
         """Entry point."""
@@ -124,7 +125,6 @@ class Helper(object):
                 DesiredCapabilities.IPAD.copy()
                 DesiredCapabilities.IPHONE.copy()
                 DesiredCapabilities.ORERA.copy()
-                DesiredCapabilities.PHANTOMJS.copy()
                 DesiredCapabilities.SAFARI.copy()
             Keys:
                 platform
@@ -134,31 +134,85 @@ class Helper(object):
         wait (int): standard time, in seconds, to wait for Selenium commands
         opera_driver (string): Chromium location
         """
+        print('Driver type input: %s' % driver_type)
         if pasta_user:
             driver = 'saucelabs'
-        elif driver_type:
+            print('Driver type: %s' % driver)
+        elif driver_type and driver_type is not 'chrome':
             driver = driver_type
+            print('Driver type: %s' % driver)
         else:
+            option_set = options.Options()
+            option_set.add_argument("disable-infobars")
+            option_set.add_experimental_option(
+                'prefs', {
+                    'credentials_enable_service': False,
+                    'profile': {
+                        'password_manager_enabled': False
+                    }
+                }
+            )
             driver = 'chrome'
+            print('Driver type: %s' % driver)
         try:
             return {
                 'firefox': lambda: webdriver.Firefox(),
-                'chrome': lambda: webdriver.Chrome(),
+                'chrome': lambda: webdriver.Chrome(
+                    chrome_options=option_set),
+                'headlesschrome': lambda: self.start_headless(),
                 'ie': lambda: webdriver.Ie(),
                 'opera': lambda: self.start_opera(self.opera_driver),
-                'phantomjs': lambda: webdriver.PhantomJS(),
-                # 'safari': lambda: webdriver.Safari(),
+                'safari': lambda: webdriver.Safari(),
                 'saucelabs': lambda: webdriver.Remote(
                     command_executor=(
                         'http://%s:%s@ondemand.saucelabs.com:80/wd/hub' %
                         (pasta_user.get_user(), pasta_user.get_access_key())),
-                    desired_capabilities=capabilities
-                ),
+                    desired_capabilities=capabilities),
             }[driver]()
         except WebDriverException as err:
             raise FileNotFoundError(err)
         except Exception as err:
             raise err
+
+    def start_headless(self):
+        """Headless Chrome initiator."""
+        print('Start headless browser')
+        option_set = options.Options()
+        option_set.add_arguments("test-type")
+        option_set.add_arguments("start-maximized")
+        option_set.add_arguments("--js-flags=--expose-gc")
+        option_set.add_arguments("--enable-precise-memory-info")
+        option_set.add_argument('headless')
+        option_set.add_argument('disable-notifications')
+        option_set.add_argument('disable-gpu')
+        option_set.add_argument('disable-infobars')
+        option_set.add_arguments("--disable-default-apps")
+        option_set.add_arguments("test-type=browser")
+        option_set.add_experimental_option(
+                'prefs', {
+                    'credentials_enable_service': False,
+                    'profile': {
+                        'password_manager_enabled': False
+                    }
+                }
+            )
+        option_set.binary_location = os.getenv(
+            'CHROME_CANARY',
+            '/Applications/Google Chrome Canary.app' +
+            '/Contents/MacOS/Google Chrome Canary'
+        )
+        webdriver_service = service.Service(
+            os.getenv(
+                'CHROMEDRIVER',
+                '/Applications/chromedriver'
+            )
+        )
+        webdriver_service.start()
+        print('Service started; returning Remote webdriver')
+        return webdriver.Remote(
+            webdriver_service.service_url,
+            option_set.to_capabilities()
+        )
 
     def start_opera(self, location):
         """Opera initiator."""
@@ -415,8 +469,9 @@ class User(Helper):
 
     def goto_course_list(self):
         """Go to the course picker."""
+        long_wait = WebDriverWait(self.driver, 30)
         try:
-            self.wait.until(
+            long_wait.until(
                 expect.presence_of_element_located(
                     (By.ID, 'ox-react-root-container')
                 )
@@ -431,14 +486,31 @@ class User(Helper):
             raise ex
 
     def get_course_list(self, closed=False):
-        """Return a list of available courses."""
+        """
+        Return a list of available courses.
+
+        ToDo: go to a closed course
+        """
+        print(self.current_url())
+        '''print(
+            self.driver
+            .find_element(By.ID, 'ox-react-root-container')
+            .get_attribute('outerHTML')
+        )'''
+        self.wait.until(
+            expect.visibility_of_element_located(
+                (By.TAG_NAME, 'h1')
+            )
+        )
         courses = self.find_all(
             By.CSS_SELECTOR,
-            'div.course-listing-current-section' + ' ' +
-            'div.course-listing-item'
+            '.my-courses-current-section .my-courses-item'
         )
-        for a, x in enumerate(courses):
-            print('%s : "%s"' % (a, x.get_attribute('data-title')))
+        if len(courses) == 0:
+            print('No courses found: %s' % courses)
+            return []
+        for position, course in enumerate(courses):
+            print('%s : "%s"' % (position, course.get_attribute('data-title')))
         return courses
 
     def open_user_menu(self):
@@ -456,7 +528,7 @@ class User(Helper):
             ).click()
         self.wait.until(
             expect.visibility_of_element_located(
-                (By.CLASS_NAME, 'dropdown-toggle')
+                (By.CSS_SELECTOR, '.user-actions-menu')
             )
         ).click()
 
@@ -465,7 +537,7 @@ class User(Helper):
         self.open_user_menu()
         self.wait.until(
             expect.visibility_of_element_located(
-                (By.CSS_SELECTOR, '[type="submit"]')
+                (By.CSS_SELECTOR, '.user-actions-menu [type=submit]')
             )
         ).click()
         self.page.wait_for_page_load()
@@ -573,6 +645,7 @@ class Teacher(User):
     def __init__(self,
                  use_env_vars=False,
                  existing_driver=None,
+                 driver_type='chrome',
                  **kwargs):
         """Teacher initialization with User pass-through."""
         if use_env_vars:
@@ -585,6 +658,7 @@ class Teacher(User):
             kwargs['email_username'] = os.getenv('TEST_EMAIL_USER')
             kwargs['email_password'] = os.getenv('TEST_EMAIL_PASSWORD')
         super(Teacher, self).__init__(existing_driver=existing_driver,
+                                      driver_type=driver_type,
                                       **kwargs)
 
     def switch_user(self, username):
@@ -594,6 +668,7 @@ class Teacher(User):
 
     def add_assignment(self, assignment, args):
         """Add an assignment."""
+        print('Assignment: %s' % args['title'])
         self.assign.add[assignment](
             driver=self.driver,
             name=args['title'],
@@ -601,14 +676,15 @@ class Teacher(User):
             periods=args['periods'],
             state=args['status'],
             url=args['url'] if 'url' in args else None,
-            reading_list=args['reading_list'] if 'reading_list' in args else
-            None,
+            reading_list=args['reading_list'] if 'reading_list' in args
+            else None,
             problems=args['problems'] if 'problems' in args else None,
             feedback=args['feedback'] if 'feedback' in args else None
         )
 
     def change_assignment(self, assignment, args):
         """Alter an existing assignment."""
+        print('Assignment: %s' % args['title'])
         self.assign.edit[assignment](
             driver=self.driver,
             name=args['title'],
@@ -624,6 +700,7 @@ class Teacher(User):
 
     def delete_assignment(self, assignment, args):
         """Delete an existing assignment (if available)."""
+        print('Assignment: %s' % args['title'])
         self.assign.remove[assignment](
             driver=self.driver,
             name=args['title'],
@@ -655,7 +732,7 @@ class Teacher(User):
         print('Enter: goto_calendar')
         try:
             print('Try to return to the calendar')
-            self.find(By.CSS_SELECTOR, 'ul.navbar-nav a.navbar-brand').click()
+            self.find(By.CSS_SELECTOR, '.course-name').click()
             print('Succeeded')
             self.page.wait_for_page_load()
         except:
@@ -663,12 +740,16 @@ class Teacher(User):
             try:
                 self.find(
                     By.CSS_SELECTOR,
-                    'div.navbar-header a.navbar-brand'
+                    '.brand'
                 ).click()
                 print('Succeeded')
                 self.page.wait_for_page_load()
             except:
-                print('Failed')
+                print('Failed, Load manually')
+                self.get(
+                    'https://' +
+                    '/'.join(self.driver.current_url.split('/')[2:5])
+                )
                 pass
         print('Exit: goto_calendar')
 
@@ -748,10 +829,13 @@ class Teacher(User):
 
     def get_book_sections(self):
         """Return a list of book sections."""
+        print('Enter: Get Book Sections')
         print('Retrieve the book section list')
+        sleep(1)
         self.goto_calendar()
         self.page.wait_for_page_load()
         self.assign.open_assignment_menu(self.driver)
+        print('Use Reading index')
         self.wait.until(
             expect.element_to_be_clickable(
                 (By.LINK_TEXT, 'Add Reading')
@@ -760,24 +844,28 @@ class Teacher(User):
         self.page.wait_for_page_load()
         selector = self.find(By.ID, 'reading-select')
         Assignment.scroll_to(self.driver, selector)
-        sleep(1.0)
         selector.click()
         self.page.wait_for_page_load()
+        print('Open the entire book')
         for chapter in self.find_all(By.CSS_SELECTOR,
                                      'div.chapter-heading > a'):
             if chapter.get_attribute('aria-expanded') != 'true':
                 Assignment.scroll_to(self.driver, chapter)
                 sleep(0.25)
                 chapter.click()
+        print('Get all sections')
         sections = self.find_all(
             By.CSS_SELECTOR, 'div.section span.chapter-section')
+        print('Put the list together')
         section_list = []
         section_string = ''
         for section in sections:
             section_list.append(section.text)
             section_string += ' %s' % section.text
         print('Section options: %s' % section_string)
+        print('Return to the dashboard')
         self.goto_calendar()
+        print('Exit: Get Book Sections')
         return section_list
 
     def get_month_number(self, month):
@@ -788,7 +876,7 @@ class Teacher(User):
     def get_month_year(self):
         """Break a date string into a month year tuple."""
         calendar_heading = self.find(By.CSS_SELECTOR,
-                                     'div.calendar-header-label')
+                                     '.calendar-header-label')
         Assignment.scroll_to(self.driver, calendar_heading)
         calendar_date = calendar_heading.text
         month, year = calendar_date.split(' ')
@@ -829,6 +917,7 @@ class Student(User):
     def __init__(self,
                  use_env_vars=False,
                  existing_driver=None,
+                 driver_type='chrome',
                  **kwargs):
         """Student initialization with User pass-through."""
         if use_env_vars:
@@ -841,6 +930,7 @@ class Student(User):
             kwargs['email_username'] = os.getenv('TEST_EMAIL_USER')
             kwargs['email_password'] = os.getenv('TEST_EMAIL_PASSWORD')
         super(Student, self).__init__(existing_driver=existing_driver,
+                                      driver_type=driver_type,
                                       **kwargs)
 
     def goto_menu_item(self, item):
@@ -993,7 +1083,8 @@ class Admin(User):
     CONDENSED_WIDTH = User.CONDENSED_WIDTH
     DEFAULT_WAIT_TIME = User.DEFAULT_WAIT_TIME
 
-    def __init__(self, use_env_vars=False, existing_driver=None, **kwargs):
+    def __init__(self, use_env_vars=False, existing_driver=None,
+                 driver_type='chrome', **kwargs):
         """Administrator initialization with User pass-through."""
         if use_env_vars:
             if not kwargs:
@@ -1005,6 +1096,7 @@ class Admin(User):
             kwargs['email_username'] = os.getenv('TEST_EMAIL_USER')
             kwargs['email_password'] = os.getenv('TEST_EMAIL_PASSWORD')
         super(Admin, self).__init__(existing_driver=existing_driver,
+                                    driver_type=driver_type,
                                     **kwargs)
         extension = '' if self.url.endswith('/') else '/'
         self.base = self.url + extension + 'admin'
@@ -1084,7 +1176,8 @@ class ContentQA(User):
     CONDENSED_WIDTH = User.CONDENSED_WIDTH
     DEFAULT_WAIT_TIME = User.DEFAULT_WAIT_TIME
 
-    def __init__(self, use_env_vars=False, existing_driver=None, **kwargs):
+    def __init__(self, use_env_vars=False, existing_driver=None,
+                 driver_type='chrome', **kwargs):
         """Content analyst initialization with User pass-through."""
         if use_env_vars:
             if not kwargs:
@@ -1096,6 +1189,7 @@ class ContentQA(User):
             kwargs['email_username'] = os.getenv('TEST_EMAIL_USER')
             kwargs['email_password'] = os.getenv('TEST_EMAIL_PASSWORD')
         super(ContentQA, self).__init__(existing_driver=existing_driver,
+                                        driver_type=driver_type,
                                         **kwargs)
 
 
