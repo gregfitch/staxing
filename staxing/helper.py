@@ -8,6 +8,7 @@ import re
 
 from autochomsky import chomsky
 from builtins import FileNotFoundError
+from datetime import timedelta
 from itertools import repeat
 from random import randint
 from requests import HTTPError
@@ -24,14 +25,14 @@ from urllib.parse import urlparse, ParseResult
 
 try:
     from staxing.assignment import Assignment
-except ImportError:
+except ImportError:  # pragma: no cover
     from assignment import Assignment
 try:
     from staxing.page_load import SeleniumWait as Page
-except ImportError:
+except ImportError:  # pragma: no cover
     from page_load import SeleniumWait as Page
 
-__version__ = '0.0.34'
+__version__ = '0.0.36'
 
 
 class Helper(object):
@@ -232,9 +233,8 @@ class Helper(object):
         self.wait_time = new_wait
 
     def date_string(self, day_delta=0, str_format='%m/%d/%Y'):
-        """System date format for Tutor."""
-        return (datetime.date.today() + datetime.timedelta(days=day_delta)). \
-            strftime(str_format)
+        """System date format pass-through."""
+        return Assignment().to_date_string(day_delta, str_format)
 
     def get(self, url):
         """Return the current URL."""
@@ -244,7 +244,7 @@ class Helper(object):
     def get_window_size(self, dimension=None):
         """Return the current window dimensions."""
         get_size = self.driver.get_window_size()
-        if dimension is None:
+        if not dimension:
             return get_size
         if dimension not in get_size:
             raise IndexError('Unknown dimension: %s' % dimension)
@@ -277,25 +277,12 @@ class Helper(object):
         """Find elements."""
         return self.driver.find_elements(by=by, value=value)
 
-
-class WebDriverTypeException(WebDriverException):
-    """Exception for unknown WebDriver types."""
-
-    def __init__(self, msg, err):
-        """Exception initializer."""
-        self.msg = msg
-        self.__traceback__ = err
-
-    def __repr__(self):
-        """Return __str__ print."""
-        return self.__str__()
-
-    def __str__(self):
-        """String representation of the exception."""
-        try:
-            return str(self.msg).join(str(self.__traceback__))
-        except Exception as e:
-            return str(type(e)).join(str(e))
+    def scroll_to(self, target):
+        """Scroll the browser window to bring the target into view."""
+        if not target:
+            raise ValueError('Web element not provided')
+        Assignment.scroll_to(self.driver, target)
+        return target
 
 
 class User(Helper):
@@ -366,6 +353,7 @@ class User(Helper):
         self.email_username = email_username
         self.email_password = email_password
         self.assign = Assignment()
+        self.course_dates = (None, None)
         super(User, self).__init__(driver_type=driver_type,
                                    capabilities=capabilities,
                                    pasta_user=pasta_user,
@@ -410,7 +398,7 @@ class User(Helper):
         if 'tutor' in url_address:
             self.wait.until(
                 expect.visibility_of_element_located(
-                    (By.CSS_SELECTOR, 'a.btn')
+                    (By.CSS_SELECTOR, '.login')
                 )
             ).click()
             self.page.wait_for_page_load()
@@ -566,6 +554,25 @@ class User(Helper):
             # Different page, but uses the same logic and link text
             self.find(By.CSS_SELECTOR, '[data-method]').click()
 
+    def close_beta_windows(self):
+        """Close the beta windows if it shows."""
+        store_wait = self.wait_time
+        self.change_wait_time(1)
+        try:
+            self.find(By.CSS_SELECTOR, '.joyride-tooltip__close').click()
+        except:
+            # beta message not seen
+            pass
+        try:
+            self.find(By.CSS_SELECTOR, '.onboarding-nag')
+            responses = self.find_all(By.CSS_SELECTOR, '.footer .btn')
+            responses[randint(0, len(responses) - 1)].click()
+            self.find(By.CSS_SELECTOR, '.footer.got-it button').click()
+        except:
+            # onboarding nag isn't shown
+            pass
+        self.change_wait_time(store_wait)
+
     def select_course(self, title=None, appearance=None):
         """Select course."""
         print('Select course "%s" / "%s"' % (title, appearance))
@@ -599,9 +606,10 @@ class User(Helper):
         )
         print('Course: %s - %s' % (title if title else appearance,
                                    select.get_attribute('href')))
-        self.sleep(1)
+        self.close_beta_windows()
         select.click()
         self.page.wait_for_page_load()
+        self.close_beta_windows()
         print('Select course complete')
         return self
 
@@ -618,22 +626,6 @@ class User(Helper):
         self.find(
             By.XPATH, '//li/a[contains(@class,"view-reference-guide")]'
         ).click()
-
-    def scroll_to(self, location):
-        Assignment.scroll_to(self.driver, location)
-        return self
-
-
-class LoginError(Exception):
-    """Login error exception."""
-
-    def __init__(self, value):
-        """Exception initializer."""
-        self.value = value
-
-    def __str__(self):
-        """Return string of the exception text."""
-        return repr(self.value)
 
 
 class Teacher(User):
@@ -717,7 +709,7 @@ class Teacher(User):
     def goto_menu_item(self, item):
         """Go to a specific user menu item."""
         print('Enter: goto_menu_item')
-        if 'courses' in self.current_url():
+        if 'course' in self.current_url():
             print('Open user menu')
             self.open_user_menu()
             print('Select menu item %s' % item)
@@ -787,6 +779,12 @@ class Teacher(User):
         """Access the course settings page."""
         self.goto_course_roster()
 
+    def get_course_sections(self):
+        """Return the list of course sections currently active."""
+        self.goto_course_roster()
+        tabs = self.find_all(By.CSS_SELECTOR, '.nav-tabs [role]')
+        return [tab.get_attribute('innerHTML') for tab in tabs]
+
     def add_course_section(self, section_name):
         """Add a section to the course."""
         print('Enter: add_course_section')
@@ -855,7 +853,7 @@ class Teacher(User):
                 chapter.click()
         print('Get all sections')
         sections = self.find_all(
-            By.CSS_SELECTOR, 'div.section span.chapter-section')
+            By.CSS_SELECTOR, '.section .chapter-section')
         print('Put the list together')
         section_list = []
         section_string = ''
@@ -867,6 +865,35 @@ class Teacher(User):
         self.goto_calendar()
         print('Exit: Get Book Sections')
         return section_list
+
+    def get_course_begin_end(self):
+        """Return the course start and end dates as timedate objects."""
+        if 'course' not in self.current_url():
+            raise CourseSelectionError('No course selected')
+        self.goto_course_roster()
+        course_time_periods = self.driver.find_elements(
+            By.CSS_SELECTOR,
+            '.course-settings-detail'
+        )
+        if len(course_time_periods) < 3:
+            raise CourseSelectionError('Course start and end dates not found')
+        begin = course_time_periods[0].get_attribute('innerHTML')
+        begin = begin.split('>')[3].split('<')[0]
+        end = course_time_periods[1].get_attribute('innerHTML')
+        end = end.split('>')[3].split('<')[0]
+        print(begin + ' - ' + end)
+        return (datetime.datetime.strptime(begin, '%m/%d/%Y'),
+                datetime.datetime.strptime(end, '%m/%d/%Y'))
+
+    def date_is_valid(self, date):
+        """Return boolean if end_date >= date >= start_date."""
+        if not isinstance(date, datetime.date):
+            date = datetime.strptime(date, '%m/%d/%Y')
+        start, end = self.get_course_begin_end()
+        delta = timedelta(0)
+        if date - start == delta or end - date == delta:
+            return True
+        return date > start and date < end
 
     def get_month_number(self, month):
         """Take a string month and return its numberic."""
@@ -886,10 +913,8 @@ class Teacher(User):
         """Rotate the teacher calendar to a specific month and year."""
         cal_month, cal_year = self.get_month_year()
         target_date = datetime.datetime.strptime(target, '%m/%d/%Y').date()
-        if cal_year == target_date.year and \
-                cal_month == target_date.month:
+        if cal_year == target_date.year and cal_month == target_date.month:
             return
-        cal_month, cal_year = self.get_month_year()
         while cal_year < target_date.year:
             self.find(By.CLASS_NAME, 'fa-caret-right').click()
             sleep(0.2)
@@ -1193,14 +1218,28 @@ class ContentQA(User):
                                         **kwargs)
 
 
-class Webview(object):
+class Webview(Helper):
     """Webview navigation and control."""
 
-    def __init__(self, driver, wait_time=30, site='https://demo.cnx.org/'):
+    CONDENSED_WIDTH = Helper.CONDENSED_WIDTH
+    DEFAULT_WAIT_TIME = Helper.DEFAULT_WAIT_TIME
+
+    def __init__(self,
+                 driver_type='chrome',
+                 capabilities=None,
+                 pasta_user=None,
+                 wait_time=DEFAULT_WAIT_TIME,
+                 remote_driver='',
+                 existing_driver=None,
+                 **kwargs):
         """Webview constructor."""
-        self.driver = driver
-        self.wait = WebDriverWait(driver, wait_time)
-        self.site = site
+        self.course_dates = (None, None)
+        super(Webview, self).__init__(driver_type=driver_type,
+                                      capabilities=capabilities,
+                                      pasta_user=pasta_user,
+                                      wait_time=wait_time,
+                                      existing_driver=existing_driver,
+                                      **kwargs)
 
     def goto_section(self, section_name=None, section_number=None):
         """Go to a specific page module."""
@@ -1214,11 +1253,67 @@ class Webview(object):
         """Go to the previous page module."""
         raise NotImplementedError(inspect.currentframe().f_code.co_name)
 
-    def goto_concept_coach(self):
-        """Go to the Concept Coach widget."""
-        raise NotImplementedError(inspect.currentframe().f_code.co_name)
+
+class CourseSelectionError(Exception):
+    """Course selection failure exception."""
+
+    def __init__(self, msg, err):
+        """Exception initializer."""
+        self.msg = msg
+        self.__traceback__ = err
+
+    def __repr__(self):
+        """Return __str__ print."""
+        return self.__str__()
+
+    def __str__(self):
+        """String representation of the exception."""
+        try:
+            return str(self.msg).join(str(self.__traceback__))
+        except Exception as e:
+            return str(type(e)).join(str(e))
 
 
-if __name__ == '__main__':
+class LoginError(Exception):
+    """Login error exception."""
+
+    def __init__(self, msg, err):
+        """Exception initializer."""
+        self.msg = msg
+        self.__traceback__ = err
+
+    def __repr__(self):
+        """Return __str__ print."""
+        return self.__str__()
+
+    def __str__(self):
+        """String representation of the exception."""
+        try:
+            return str(self.msg).join(str(self.__traceback__))
+        except Exception as e:
+            return str(type(e)).join(str(e))
+
+
+class WebDriverTypeException(WebDriverException):
+    """Exception for unknown WebDriver types."""
+
+    def __init__(self, msg, err):
+        """Exception initializer."""
+        self.msg = msg
+        self.__traceback__ = err
+
+    def __repr__(self):
+        """Return __str__ print."""
+        return self.__str__()
+
+    def __str__(self):
+        """String representation of the exception."""
+        try:
+            return str(self.msg).join(str(self.__traceback__))
+        except Exception as e:
+            return str(type(e)).join(str(e))
+
+
+if __name__ == '__main__':  # pragma: no cover
     # execute if run as a script
     initialization = Helper

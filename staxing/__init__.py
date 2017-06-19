@@ -4,7 +4,7 @@ from .helper import Helper, Admin, Student, Teacher, User, ContentQA
 from .assignment import Assignment
 from .page_load import SeleniumWait
 
-if __name__ == '__main__':
+if __name__ == '__main__':  # pragma: no cover
     a = Helper
     b = Assignment
     c = Admin

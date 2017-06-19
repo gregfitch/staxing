@@ -12,11 +12,11 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support import expected_conditions as expect
 from selenium.webdriver.support.ui import WebDriverWait
 
-__version__ = '0.0.35'
+__version__ = '0.0.36'
 
 try:
     from staxing.page_load import SeleniumWait as Page
-except ImportError:
+except ImportError:  # pragma: no cover
     from page_load import SeleniumWait as Page
 
 
@@ -303,6 +303,11 @@ class Assignment(object):
         element.clear()
         for char in self.modify_time(time):
             element.send_keys(char)
+
+    def to_date_string(self, day_delta=0, str_format='%m/%d/%Y'):
+        """System date format for Tutor."""
+        return (datetime.date.today() + datetime.timedelta(days=day_delta)). \
+            strftime(str_format)
 
     def assign_date(self, driver, date,
                     option=None, is_all=False, target='due'):
@@ -981,85 +986,6 @@ class Assignment(object):
         )
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':  # pragma: no cover
     # Test Assignment work
-    import os
-    from selenium import webdriver
-
-    print('Start Chrome instance')
-    driver = webdriver.Chrome()
-    print('Set window size')
-    driver.set_window_size(1300, 768)
-    print('Open Tutor QA')
-    driver.get('https://tutor-qa.openstax.org/')
-    print('Log in')
-    driver.find_element(By.LINK_TEXT, 'Log in').click()
-    driver.find_element(By.ID, 'login_username_or_email'). \
-        send_keys(os.getenv('TEACHER_USER'))
-    driver.find_element(By.CSS_SELECTOR, 'input.primary').click()
-    driver.find_element(By.ID, 'login_password'). \
-        send_keys(os.getenv('TEACHER_PASSWORD'))
-    driver.find_element(By.CSS_SELECTOR, 'input.primary').click()
-    print('Select a course')
-    WebDriverWait(driver, 20).until(
-            expect.element_to_be_clickable(
-                (
-                    By.XPATH, '//div[@data-%s="%s"]//a' %
-                    ('title', 'Physics with Courseware Review --KAJAL')
-                )
-            )
-        ).click()
-    assign = Assignment()
-    print('Open assignment menu')
-    assign.open_assignment_menu(driver)
-    time.sleep(0.5)
-    print('Add a new reading')
-    driver.find_element(By.LINK_TEXT, 'Add Reading').click()
-    print('Test date/time options')
-    start = datetime.date.today() + datetime.timedelta(days=10)
-    test_periods = {
-        '1st': (
-            start.strftime('%m/%d/%Y'),
-            (start + datetime.timedelta(days=5)).strftime('%m/%d/%Y')
-        ),
-        '2nd': (
-            (start + datetime.timedelta(days=2)).strftime('%m/%d/%Y'),
-            (start + datetime.timedelta(days=7)).strftime('%m/%d/%Y')
-        ),
-        '3rd': (
-            ((start + datetime.timedelta(days=4)).strftime('%m/%d/%Y'),
-             '4:00 am'),
-            (start + datetime.timedelta(days=9)).strftime('%m/%d/%Y')
-        ),
-        'all': (
-            (start + datetime.timedelta(days=1)).strftime('%m/%d/%Y'),
-            (start + datetime.timedelta(days=6)).strftime('%m/%d/%Y')
-        ),
-    }
-    periods = {
-        '1st': (
-            start.strftime('%m/%d/%Y'),
-            (start + datetime.timedelta(days=5)).strftime('%m/%d/%Y')
-        ),
-        '2nd': (
-            ((start + datetime.timedelta(days=2)).strftime('%m/%d/%Y'),
-             '8:00a'),
-            ((start + datetime.timedelta(days=7)).strftime('%m/%d/%Y'),
-             '800p')
-        ),
-        '3rd': (
-            (start + datetime.timedelta(days=6)).strftime('%m/%d/%Y'),
-            ((start + datetime.timedelta(days=10)).strftime('%m/%d/%Y'),
-             '8:00 pm')
-        ),
-        'test': (
-            (start + datetime.timedelta(days=10)).strftime('%m/%d/%Y'),
-            (start + datetime.timedelta(days=14)).strftime('%m/%d/%Y')
-        ),
-        # 'all': (('2/11/2017', '1000a'), ('2/14/2017', '1000p')),
-    }
-    print('Make a reading assignment')
-    assign.assign_periods(driver=driver, periods=periods)
-    time.sleep(5)
-    print('Close WebDriver')
-    driver.quit()
+    initialization = Assignment
