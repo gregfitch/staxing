@@ -18,7 +18,7 @@ class Actions(ActionChains):
 
     def wait(self, seconds: float):
         """Sleep for a specified number of seconds within an ActionChain."""
-        self._actions.append(lambda: sleep(secs=seconds))
+        self._actions.append(lambda: sleep(seconds))
         return self
 
 if __name__ == '__main__':  # pragma: no cover
