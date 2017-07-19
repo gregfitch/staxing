@@ -11,7 +11,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support.expected_conditions import staleness_of
 
-__version__ = '1.0.0'
+__version__ = '1.0.1'
 
 
 class SeleniumWait(object):
@@ -37,7 +37,8 @@ class SeleniumWait(object):
         )
 
     @contextmanager
-    def wait_for_loading_staleness(self, style, pseudo_element):
+    def wait_for_loading_staleness(self, style=None, _id=None,
+                                   pseudo_element=None):
         """Wait for section load.
 
         Parameters:
@@ -54,17 +55,24 @@ class SeleniumWait(object):
                 '::spelling-error'
                 '::grammar-error'
         """
-        pseudo, pseudo_is_valid = self.is_valid_pseudo(pseudo_element)
-        if not pseudo_is_valid:
-            raise ValueError('%s not in %s' % (self.pseudos))
-        self.wait.until(
-            staleness_of(
-                self.driver.find_element(
-                    By.CSS_SELECTOR,
-                    '%s%s' % (style, pseudo)
+        if _id:
+            self.wait.until(
+                staleness_of(
+                    self.browser.find_element(By.ID, _id)
                 )
             )
-        )
+        else:
+            pseudo, pseudo_is_valid = self.is_valid_pseudo(pseudo_element)
+            if not pseudo_is_valid:
+                raise ValueError('%s not in %s' % (pseudo, self.pseudos))
+            self.wait.until(
+                staleness_of(
+                    self.browser.find_element(
+                        By.CSS_SELECTOR,
+                        '%s%s' % (style, pseudo)
+                    )
+                )
+            )
 
     def is_valid_pseudo(self, pseudo_element):
         """Validate pseudo selector."""
