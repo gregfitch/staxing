@@ -7,7 +7,7 @@ from random import randint
 from selenium import webdriver
 from staxing.actions import Actions
 
-__version__ = '0.0.1'
+__version__ = '1.0.0'
 
 
 class TestStaxingActions(unittest.TestCase):
