@@ -32,7 +32,7 @@ try:
 except ImportError:  # pragma: no cover
     from page_load import SeleniumWait as Page
 
-__version__ = '0.0.36'
+__version__ = '0.0.37'
 
 
 class Helper(object):
@@ -586,6 +586,13 @@ class User(Helper):
             # Only has one course and the user is at the dashboard so return
             print('Single course; select course complete')
             return
+        if appearance:
+            if 'sociology' in appearance:
+                appearance = 'intro_sociology'
+            elif 'biology' in appearance:
+                appearance = 'college_biology'
+            else:
+                appearance = 'college_physics'
         if title:
             uses_option = 'title'
             course = title
