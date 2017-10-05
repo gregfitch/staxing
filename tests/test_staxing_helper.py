@@ -1,4 +1,4 @@
-"""Staxing test files."""
+"""Staxing test files - Helper."""
 
 import os
 import datetime
@@ -16,7 +16,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from staxing.assignment import Assignment
 from staxing.helper import Helper, Teacher, Student, Admin, ContentQA, User
 
-__version__ = '0.0.7'
+__version__ = '0.0.8'
 TESTS = os.getenv(
     'CASELIST',
     str([
@@ -325,22 +325,28 @@ class TestStaxingUser(unittest.TestCase):
 class TestStaxingTutorTeacher(unittest.TestCase):
     """Staxing case tests."""
 
-    section_driver = Teacher(use_env_vars=True) \
-        .switch_user(os.getenv('TEACHER_USER_MULTI')) \
-        .login() \
-        .select_course(title='Physics with Courseware Review')
-    book_sections = section_driver.get_book_sections()
-    section_driver.delete()
+    book_sections = None
+    class_start_end_dates = None
 
     def setUp(self):
         """Pretest settings."""
-        self.teacher = Teacher(use_env_vars=True, driver='headlesschrome')
+        self.teacher = Teacher(use_env_vars=True, driver='chrome')
         self.teacher.username = os.getenv('TEACHER_USER_MULTI',
                                           self.teacher.username)
         self.teacher.set_window_size(height=700, width=1200)
         self.teacher.login()
-        self.teacher.select_course(title='Physics with Courseware Review')
+        courses = self.teacher.get_course_list()
+        course = courses[randint(0, len(courses) - 1)]
+        self.teacher.select_course(title=course.get_attribute('data-title'))
+        if not self.__class__.book_sections:
+            self.__class__.book_sections = self.teacher.get_book_sections()
+            self.teacher.goto_calendar()
+        if not self.__class__.class_start_end_dates:
+            self.__class__.class_start_end_dates = \
+                self.teacher.get_course_begin_end()
+            self.teacher.goto_calendar()
         self.book_sections = self.__class__.book_sections
+        self.start_end = self.__class__.class_start_end_dates
 
     def tearDown(self):
         """Test destructor."""
@@ -356,7 +362,14 @@ class TestStaxingTutorTeacher(unittest.TestCase):
 
         assignment_title = 'Reading-%s' % Assignment.rword(5)
         left = randint(0, 20)
+        if not self.teacher.date_is_valid(datetime.date.today() +
+                                          datetime.timedelta(left)):
+            left = self.class_start_end_dates[0]
         right = left + randint(1, 10)
+        if not self.teacher.date_is_valid(datetime.date.today() +
+                                          datetime.timedelta(right)):
+            right = self.class_start_end_dates[1]
+        print('Left: %s  Right: %s' % (left, right))
         start_date_1 = self.teacher.date_string(day_delta=left)
         end_date_1 = self.teacher.date_string(day_delta=right)
         start_date_2 = self.teacher.date_string(day_delta=left + 1)
@@ -649,7 +662,7 @@ class TestStaxingTutorTeacher(unittest.TestCase):
 
     @pytest.mark.skipif(str(314) not in TESTS, reason='Excluded')
     def test_add_course_section_314(self):
-        """No test placeholder."""
+        """Add a course section to a class."""
         section_name = 'New Section'
         self.teacher.add_course_section(section_name)
         classes = self.teacher.find_all(By.CSS_SELECTOR, 'a[role*="tab"]')

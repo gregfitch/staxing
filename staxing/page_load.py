@@ -11,16 +11,16 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support.expected_conditions import staleness_of
 
-__version__ = '0.0.3'
+__version__ = '1.0.1'
 
 
 class SeleniumWait(object):
     """Wait for webpage load by watching for staleness."""
 
-    def __init__(self, driver, wait):
+    def __init__(self, driver, wait=None):
         """Constructor."""
         self.browser = driver
-        self.wait = wait
+        self.wait = wait if wait else WebDriverWait(driver, 60)
         self.pseudos = [
             '::after', '::before', '::first-letter', '::first-line',
             '::selection', '::backdrop', '::placeholder', '::marker',
@@ -37,7 +37,8 @@ class SeleniumWait(object):
         )
 
     @contextmanager
-    def wait_for_loading_staleness(self, style, pseudo_element):
+    def wait_for_loading_staleness(self, style=None, _id=None,
+                                   pseudo_element=None):
         """Wait for section load.
 
         Parameters:
@@ -54,19 +55,30 @@ class SeleniumWait(object):
                 '::spelling-error'
                 '::grammar-error'
         """
-        pseudo, pseudo_is_valid = self.is_valid_pseudo(pseudo_element)
-        if not pseudo_is_valid:
-            raise ValueError('%s not in %s' % (self.pseudos))
-        WebDriverWait(self.driver, 90).until(
-            staleness_of(
-                self.driver.find_element(
-                    By.CSS_SELECTOR,
-                    '%s%s' % (style, pseudo)
+        if _id:
+            self.wait.until(
+                staleness_of(
+                    self.browser.find_element(By.ID, _id)
                 )
             )
-        )
+        else:
+            pseudo, pseudo_is_valid = self.is_valid_pseudo(pseudo_element)
+            if not pseudo_is_valid:
+                raise ValueError('%s not in %s' % (pseudo, self.pseudos))
+            self.wait.until(
+                staleness_of(
+                    self.browser.find_element(
+                        By.CSS_SELECTOR,
+                        '%s%s' % (style, pseudo)
+                    )
+                )
+            )
 
     def is_valid_pseudo(self, pseudo_element):
         """Validate pseudo selector."""
         pseudo = ''.join(('::', pseudo_element.split(':')[-1]))
         return (pseudo, pseudo in self.pseudos)
+
+
+if __name__ == '__main__':  # pragma: no cover
+    initialization = SeleniumWait
