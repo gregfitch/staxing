@@ -32,7 +32,7 @@ try:
 except ImportError:  # pragma: no cover
     from page_load import SeleniumWait as Page
 
-__version__ = '0.0.37'
+__version__ = '0.0.39'
 
 
 class Helper(object):
@@ -396,11 +396,13 @@ class User(Helper):
         self.get(url_address)
         self.page.wait_for_page_load()
         if 'tutor' in url_address:
-            self.wait.until(
-                expect.visibility_of_element_located(
+            login = self.wait.until(
+                expect.presence_of_element_located(
                     (By.CSS_SELECTOR, '.login')
                 )
-            ).click()
+            )
+            self.scroll_to(login)
+            login.click()
             self.page.wait_for_page_load()
         elif 'exercises' in url_address:
             self.find(By.LINK_TEXT, 'Sign in').click()
