@@ -32,7 +32,7 @@ try:
 except ImportError:  # pragma: no cover
     from page_load import SeleniumWait as Page
 
-__version__ = '0.0.39'
+__version__ = '0.0.40'
 
 
 class Helper(object):
