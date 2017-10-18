@@ -670,6 +670,7 @@ class Teacher(User):
     def add_assignment(self, assignment, args):
         """Add an assignment."""
         print('Assignment: %s' % args['title'])
+        self.goto_calendar()
         self.assign.add[assignment](
             driver=self.driver,
             name=args['title'],
@@ -686,6 +687,7 @@ class Teacher(User):
     def change_assignment(self, assignment, args):
         """Alter an existing assignment."""
         print('Assignment: %s' % args['title'])
+        self.goto_calendar()
         self.assign.edit[assignment](
             driver=self.driver,
             name=args['title'],
@@ -702,6 +704,7 @@ class Teacher(User):
     def delete_assignment(self, assignment, args):
         """Delete an existing assignment (if available)."""
         print('Assignment: %s' % args['title'])
+        self.goto_calendar()
         self.assign.remove[assignment](
             driver=self.driver,
             name=args['title'],
@@ -731,27 +734,9 @@ class Teacher(User):
     def goto_calendar(self):
         """Return the teacher to the calendar dashboard."""
         print('Enter: goto_calendar')
-        try:
-            print('Try to return to the calendar')
-            self.find(By.CSS_SELECTOR, '.course-name').click()
-            print('Succeeded')
-            self.page.wait_for_page_load()
-        except:
-            print('Failed, Try to return to the calendar using the Brand')
-            try:
-                self.find(
-                    By.CSS_SELECTOR,
-                    '.brand'
-                ).click()
-                print('Succeeded')
-                self.page.wait_for_page_load()
-            except:
-                print('Failed, Load manually')
-                self.get(
-                    'https://' +
-                    '/'.join(self.driver.current_url.split('/')[2:5])
-                )
-                pass
+        print('Try to return to the calendar')
+        self.goto_menu_item('Dashboard')
+        self.page.wait_for_page_load()
         print('Exit: goto_calendar')
 
     def goto_performance_forecast(self):
@@ -781,12 +766,14 @@ class Teacher(User):
     def goto_course_roster(self):
         """Access the course roster page."""
         print('Enter: goto_course_roster')
-        self.goto_menu_item('Course Settings and Roster')
+        self.goto_menu_item('Course Roster')
         print('Exit: goto_course_roster')
 
     def goto_course_settings(self):
         """Access the course settings page."""
-        self.goto_course_roster()
+        print('Enter: goto_course_settings')
+        self.goto_menu_item('Course Settings')
+        print('Exit: goto_course_settings')
 
     def get_course_sections(self):
         """Return the list of course sections currently active."""
@@ -879,27 +866,38 @@ class Teacher(User):
         """Return the course start and end dates as timedate objects."""
         if 'course' not in self.current_url():
             raise CourseSelectionError('No course selected')
-        self.goto_course_roster()
-        course_time_periods = self.driver.find_elements(
+        self.goto_course_settings()
+        course_time_periods = self.find_all(
             By.CSS_SELECTOR,
-            '.course-settings-detail'
+            '.dates-and-times div'
         )
         if len(course_time_periods) < 3:
-            raise CourseSelectionError('Course start and end dates not found')
-        begin = course_time_periods[0].get_attribute('innerHTML')
+            raise CourseSelectionError(
+                'Course start and end dates not found',
+                None
+            )
+        begin = course_time_periods[1].get_attribute('innerHTML')
+        print('"%s"' % begin)
         begin = begin.split('>')[3].split('<')[0]
         end = course_time_periods[1].get_attribute('innerHTML')
-        end = end.split('>')[3].split('<')[0]
+        end = end.split('>')[7].split('<')[0]
         print(begin + ' - ' + end)
         return (datetime.datetime.strptime(begin, '%m/%d/%Y'),
                 datetime.datetime.strptime(end, '%m/%d/%Y'))
 
     def date_is_valid(self, date):
         """Return boolean if end_date >= date >= start_date."""
+        print(str(date), type(date))
         if not isinstance(date, datetime.date):
             date = datetime.strptime(date, '%m/%d/%Y')
+        date = datetime.datetime(date.year, date.month, date.day)
         start, end = self.get_course_begin_end()
         delta = timedelta(0)
+        print('{0} - {1}\n{2} - {3}\n{4} - {5}'.format(
+            str(date), type(date),
+            str(start), type(start),
+            str(end), type(end)
+        ))
         if date - start == delta or end - date == delta:
             return True
         return date > start and date < end
