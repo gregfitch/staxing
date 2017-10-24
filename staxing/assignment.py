@@ -265,8 +265,7 @@ class Assignment(object):
         month, year = current.text.split(' ')
         month = months[month]
         year = int(year)
-
-        while year <= new_date.year and month < new_date.month:
+        while year <= new_date.year:
             next_month.click()
             current = driver.find_element(
                 By.CLASS_NAME,
@@ -276,6 +275,17 @@ class Assignment(object):
             month = months[month]
             year = int(year)
             time.sleep(1.0)
+        while month < new_date.month:
+            next_month.click()
+            current = driver.find_element(
+                By.CLASS_NAME,
+                'react-datepicker__current-month'
+            )
+            month, year = current.text.split(' ')
+            month = months[month]
+            year = int(year)
+            time.sleep(1.0)
+
         while year >= new_date.year and month > new_date.month:
             # because it will only ever go back one month it's okay to find
             # arrow inside the while loop
@@ -370,7 +380,6 @@ class Assignment(object):
             ] = period
         period_match = False
         for period in options:
-            print('Period:', period)
             # activate or deactivate a specific period/section row
             period_match = period_match or period in periods
             if period not in periods:
