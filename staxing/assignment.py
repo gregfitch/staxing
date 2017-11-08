@@ -265,8 +265,7 @@ class Assignment(object):
         month, year = current.text.split(' ')
         month = months[month]
         year = int(year)
-
-        while year <= new_date.year and month < new_date.month:
+        while year < new_date.year:
             next_month.click()
             current = driver.find_element(
                 By.CLASS_NAME,
@@ -276,6 +275,17 @@ class Assignment(object):
             month = months[month]
             year = int(year)
             time.sleep(1.0)
+        while month < new_date.month:
+            next_month.click()
+            current = driver.find_element(
+                By.CLASS_NAME,
+                'react-datepicker__current-month'
+            )
+            month, year = current.text.split(' ')
+            month = months[month]
+            year = int(year)
+            time.sleep(1.0)
+
         while year >= new_date.year and month > new_date.month:
             # because it will only ever go back one month it's okay to find
             # arrow inside the while loop
@@ -342,16 +352,16 @@ class Assignment(object):
                 opens_on, opens_at = opens_on
             if isinstance(closes_on, tuple):
                 closes_on, closes_at = closes_on
-            self.assign_date(driver=driver, date=closes_on,
-                             is_all=True, target='due')
-            if closes_at:
-                self.assign_time(driver=driver, time=closes_at,
-                                 is_all=True, target='due')
             self.assign_date(driver=driver, date=opens_on,
                              is_all=True, target='open')
             if opens_at:
                 self.assign_time(driver=driver, time=opens_at,
                                  is_all=True, target='open')
+            self.assign_date(driver=driver, date=closes_on,
+                             is_all=True, target='due')
+            if closes_at:
+                self.assign_time(driver=driver, time=closes_at,
+                                 is_all=True, target='due')
             return
         # or locate important elements for each period/section
         options = {}
@@ -369,8 +379,8 @@ class Assignment(object):
                 ).text
             ] = period
         period_match = False
+        print ("options!!",options)
         for period in options:
-            print('Period:', period)
             # activate or deactivate a specific period/section row
             period_match = period_match or period in periods
             if period not in periods:
@@ -392,16 +402,17 @@ class Assignment(object):
                 opens_on, opens_at = opens_on
             if isinstance(closes_on, tuple):
                 closes_on, closes_at = closes_on
-            self.assign_date(driver=driver, date=closes_on,
-                             option=options[period], target='due')
-            if closes_at:
-                self.assign_time(driver=driver, time=closes_at,
-                                 option=options[period], target='due')
             self.assign_date(driver=driver, date=opens_on,
                              option=options[period], target='open')
             if opens_at:
                 self.assign_time(driver=driver, time=opens_at,
                                  option=options[period], target='open')
+            self.assign_date(driver=driver, date=closes_on,
+                             option=options[period], target='due')
+            if closes_at:
+                self.assign_time(driver=driver, time=closes_at,
+                                 option=options[period], target='due')
+            
         if not period_match:
             raise ValueError('No periods matched')
 
@@ -897,11 +908,12 @@ class Assignment(object):
         """Delete a reading assignment."""
         print('Delete Reading: %s' % title)
         wait = WebDriverWait(driver, Assignment.WAIT_TIME * 4)
-        wait.until(
-            expect.visibility_of_element_located(
-                (By.CSS_SELECTOR, '.course-name')
-            )
-        )  # .click()
+        # wait.until(
+        #     expect.visibility_of_element_located(
+        #         (By.CSS_SELECTOR, '.course-name')
+        #     )
+        # )  # .click()
+
         due_date = ''
         for period in periods:
             _, due_date = periods[period]
@@ -924,24 +936,27 @@ class Assignment(object):
         page.wait_for_page_load()
         wait.until(
             expect.presence_of_element_located(
-                (By.XPATH, '//a[div[label[text()="%s"]]]' % title)
+                (By.XPATH, '//div[div[label[text()="%s"]]]' % title)
             )
         ).click()
         time.sleep(0.3)
+
         try:
-            modal = driver.find_element(By.CLASS_NAME, '-edit-assignment')
+            modal = driver.find_element(By.XPATH, '//div[@class="modal-footer"]/a[2]')
             Assignment.scroll_to(driver, modal)
             modal.click()
         except:
             pass
         page.wait_for_page_load()
+
+        time.sleep(3)
         wait.until(
-            expect.presence_of_element_located(
-                (By.CLASS_NAME, 'delete-link')
+            expect.visibility_of_element_located(
+                (By.XPATH, '//button[contains(@class, "delete-link")]')
             )
         ).click()
         wait.until(
-            expect.presence_of_element_located(
+            expect.visibility_of_element_located(
                 (By.XPATH, '//div[@class="controls"]/button[text()="Yes"]')
             )
         ).click()
