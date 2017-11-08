@@ -32,7 +32,7 @@ try:
 except ImportError:  # pragma: no cover
     from page_load import SeleniumWait as Page
 
-__version__ = '0.0.40'
+__version__ = '0.0.41'
 
 
 class Helper(object):
@@ -801,7 +801,7 @@ class Teacher(User):
         ).click()
         print('Exit: add_course_section')
 
-    def get_enrollment_code(self, section_name):
+    def get_enrollment_code(self, section_name=None, random=False):
         """Return the enrollment code for a class section."""
         print('Enter: get_enrollment_code')
         if 'settings' not in self.driver.current_url:

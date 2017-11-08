@@ -16,7 +16,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from staxing.assignment import Assignment
 from staxing.helper import Helper, Teacher, Student, Admin, ContentQA, User
 
-__version__ = '0.0.8'
+__version__ = '0.0.9'
 TESTS = os.getenv(
     'CASELIST',
     str([
@@ -369,8 +369,10 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         start_date_3 = self.teacher.date_string(day_delta=left_delta + 2)
         if not self.teacher.date_is_valid(left):
             start_date_1 = self.class_start_end_dates[0]
-            start_date_2 = self.class_start_end_dates[0] + datetime.timedelta(1)
-            start_date_3 = self.class_start_end_dates[0] + datetime.timedelta(2)
+            start_date_2 = self.class_start_end_dates[0] \
+                + datetime.timedelta(1)
+            start_date_3 = self.class_start_end_dates[0] \
+                + datetime.timedelta(2)
         right_delta = left_delta + randint(1, 10)
         right = datetime.date.today() + datetime.timedelta(right_delta)
         end_date_1 = self.teacher.date_string(day_delta=right_delta)
@@ -400,7 +402,7 @@ class TestStaxingTutorTeacher(unittest.TestCase):
                 'periods': {
                     '1st': (start_date_1, end_date_1),
                     '2nd': ((start_date_2, start_time_2),
-                               (end_date_2, end_time_2)),
+                            (end_date_2, end_time_2)),
                     '3rd': (start_date_3, end_date_3),
                 },
                 'reading_list': reading_list,
@@ -431,7 +433,8 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         start_date_2 = self.teacher.date_string(day_delta=left_delta + 1)
         if not self.teacher.date_is_valid(left):
             start_date_1 = self.class_start_end_dates[0]
-            start_date_2 = self.class_start_end_dates[0] + datetime.timedelta(1)
+            start_date_2 = self.class_start_end_dates[0] \
+                + datetime.timedelta(1)
 
         right_delta = left_delta + randint(1, 10)
         right = datetime.date.today() + datetime.timedelta(right_delta)
@@ -483,8 +486,10 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         start_date_3 = self.teacher.date_string(day_delta=left_delta + 2)
         if not self.teacher.date_is_valid(left):
             start_date_1 = self.class_start_end_dates[0]
-            start_date_2 = self.class_start_end_dates[0] + datetime.timedelta(1)
-            start_date_3 = self.class_start_end_dates[0] + datetime.timedelta(2)
+            start_date_2 = self.class_start_end_dates[0] \
+                + datetime.timedelta(1)
+            start_date_3 = self.class_start_end_dates[0] \
+                + datetime.timedelta(2)
 
         right_delta = left_delta + randint(1, 10)
         right = datetime.date.today() + datetime.timedelta(right_delta)
@@ -635,7 +640,7 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         right = datetime.date.today() + datetime.timedelta(right_delta)
         end_date = self.teacher.date_string(day_delta=right_delta)
         if not self.teacher.date_is_valid(right):
-            end_date = self.class_start_end_dates[1] - 2        
+            end_date = self.class_start_end_dates[1] - 2
         self.teacher.add_assignment(
             assignment='reading',
             args={
@@ -667,7 +672,7 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         # time.sleep(5.0)
         # assert(reading), '%s not publishing on %s' % (assignment_title,
         #                                               end_date_3)
-        
+
         time.sleep(5.0)
         assert(reading), \
             '%s not publishing on %s' % (assignment_title, end_date)
