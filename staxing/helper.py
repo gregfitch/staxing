@@ -32,7 +32,7 @@ try:
 except ImportError:  # pragma: no cover
     from page_load import SeleniumWait as Page
 
-__version__ = '0.0.41'
+__version__ = '0.0.42'
 
 
 class Helper(object):
@@ -806,7 +806,7 @@ class Teacher(User):
         print('Enter: get_enrollment_code')
         if 'settings' not in self.current_url():
             self.goto_course_settings()
-        #self.find(By.XPATH, '//a[h2[contains(text(), "access")]]').click()
+        # self.find(By.XPATH, '//a[h2[contains(text(), "access")]]').click()
         try:
             enrollment_urls = self.find_all(By.CSS_SELECTOR, '[readonly]')
             if section_name:

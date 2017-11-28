@@ -16,7 +16,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from staxing.assignment import Assignment
 from staxing.helper import Helper, Teacher, Student, Admin, ContentQA, User
 
-__version__ = '0.0.9'
+__version__ = '0.0.10'
 TESTS = os.getenv(
     'CASELIST',
     str([
