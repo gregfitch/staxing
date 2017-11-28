@@ -801,25 +801,56 @@ class Teacher(User):
         ).click()
         print('Exit: add_course_section')
 
-    def get_enrollment_code(self, section_name):
+    def get_enrollment_code(self, section_name=None, random=False):
         """Return the enrollment code for a class section."""
         print('Enter: get_enrollment_code')
-        if 'settings' not in self.driver.current_url:
-            self.goto_course_roster()
-        self.find(By.XPATH, '//a[text()="%s"]' % section_name).click()
-        self.wait.until(
-            expect.element_to_be_clickable(
-                (By.CLASS_NAME, 'show-enrollment-code')
-            )
-        ).click()
-        sleep(1)
-        code = self.wait.until(
-            expect.presence_of_element_located(
-                (By.CLASS_NAME, 'code')
-            )
-        )
+        if 'settings' not in self.current_url():
+            self.goto_course_settings()
+        #self.find(By.XPATH, '//a[h2[contains(text(), "access")]]').click()
+        try:
+            enrollment_urls = self.find_all(By.CSS_SELECTOR, '[readonly]')
+            if section_name:
+                enrollment_url = self.find(
+                    By.XPATH,
+                    '//label[contains(text(), "%s")]/input' % section_name
+                ).get_attribute('value')
+            elif random:
+                enrollment_url = \
+                    enrollment_urls[randint(0, len(enrollment_urls))] \
+                    .get_attribute('value')
+            else:
+                enrollment_url = \
+                    enrollment_urls[0] \
+                    .get_attribute('value')
+        except:
+            self.find(
+                By.XPATH,
+                '//a[.//p[contains(text(), "direct")]]'
+            ).click()
+            try:
+                self.find(
+                    By.XPATH,
+                    '//button[contains(text(), "sure")]'
+                ).click()
+            except:
+                pass
+            enrollment_urls = self.find_all(By.CSS_SELECTOR, '[readonly]')
+            if section_name:
+                enrollment_url = self.find(
+                    By.XPATH,
+                    '//label[contains(text(), "%s")]/input' % section_name
+                ).get_attribute('value')
+            elif random:
+                enrollment_url = \
+                    enrollment_urls[randint(0, len(enrollment_urls))] \
+                    .get_attribute('value')
+            else:
+                enrollment_url = \
+                    enrollment_urls[0] \
+                    .get_attribute('value')
+
         print('Exit: get_enrollment_code')
-        return '%s' % code.text.strip()
+        return enrollment_url
 
     def get_book_sections(self):
         """Return a list of book sections."""
@@ -867,6 +898,7 @@ class Teacher(User):
         if 'course' not in self.current_url():
             raise CourseSelectionError('No course selected')
         self.goto_course_settings()
+        self.find(By.XPATH, '//a[h2[contains(text(), "DATES")]]').click()
         course_time_periods = self.find_all(
             By.CSS_SELECTOR,
             '.dates-and-times div'

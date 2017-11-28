@@ -22,7 +22,7 @@ TESTS = os.getenv(
     str([
         101, 102, 103, 104, 105, 106,
         201, 202, 203, 204, 205, 206, 207, 208,
-        301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311,
+        301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 315
         # 401,
         # 501,
         # 601,
@@ -677,8 +677,8 @@ class TestStaxingTutorTeacher(unittest.TestCase):
     @pytest.mark.skipif(str(315) not in TESTS, reason='Excluded')
     def test_get_enrollment_code_315(self):
         """No test placeholder."""
-        code = self.teacher.get_enrollment_code('First')
-        assert(code == 'https://tutor-qa.openstax.org/enroll/767449'), \
+        code = self.teacher.get_enrollment_code()
+        assert('enroll' in code and code[-6:].isdigit()), \
             '%s is not the correct enrollment URL' % code
 
 
