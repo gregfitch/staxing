@@ -364,8 +364,8 @@ class User(Helper):
             parse[index] = value.decode('utf-8') if isinstance(value, bytes) \
                 else value
         parse = ParseResult(*parse)
-        """
         self.url = url_parse(site)
+        """
         self.email = email
         self.email_username = email_username
         self.email_password = email_password
@@ -408,7 +408,7 @@ class User(Helper):
         """
         username = self.username if not username else username
         password = self.password if not password else password
-        url_address = self.url if not url else url_parse(url)
+        url_address = self.url if not url else self.url_parse(url)
         # open the URL
         self.get(url_address)
         self.page.wait_for_page_load()
