@@ -2,6 +2,7 @@
 
 import os
 import unittest
+import time
 
 from random import randint
 from selenium import webdriver
@@ -9,6 +10,11 @@ from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.chrome import options
 from selenium.webdriver.common.by import By
 from staxing.assignment import Assignment
+from staxing.helper import Helper
+
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as expect
+
 
 __version__ = '0.0.0'
 
@@ -30,6 +36,7 @@ class TestStaxingAssignment(unittest.TestCase):
             }
         )
         self.driver = webdriver.Chrome(chrome_options=option_set)
+        self.wait = WebDriverWait(self.driver, 15)
         self.driver.implicitly_wait(15)
 
     def tearDown(self):
@@ -95,8 +102,19 @@ class TestStaxingAssignment(unittest.TestCase):
             '.my-courses-current [data-course-course-type=tutor]'
         )
         courses[randint(0, len(courses) - 1)].click()
-        menu = self.driver.find_element(By.CSS_SELECTOR, '.sidebar-toggle')
+        try:
+            self.wait.until(
+                expect.element_to_be_clickable(
+                    (By.XPATH, '//button[contains(text(), "For extra credit")]')
+                )
+            ).click()
+            self.find(By.CLASS_NAME, 'btn-primary').click()
+        except:
+            pass
+        menu = self.driver.find_element(By.CLASS_NAME, 'sidebar-toggle')
+        # menu = self.driver.find_element(By.CSS_SELECTOR, '.sidebar-toggle')
         if 'open' in menu.get_attribute('class'):
+            time.sleep(2)
             menu.click()
         self.assignment.open_assignment_menu(self.driver)
         assert('open' in menu.get_attribute('class'))

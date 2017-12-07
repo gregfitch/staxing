@@ -20,9 +20,9 @@ __version__ = '0.0.9'
 TESTS = os.getenv(
     'CASELIST',
     str([
-        101, 102, 103, 104, 105, 106,
+        101, 102, 103, 104, 105, 106, 107,
         201, 202, 203, 204, 205, 206, 207, 208,
-        301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311,
+        301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 316,
         # 401,
         # 501,
         # 601,
@@ -267,7 +267,6 @@ class TestStaxingUser(unittest.TestCase):
         courses = self.user.get_course_list()
         course_number = 0 if len(courses) <= 1 \
             else randint(1, len(courses)) - 1
-        print(course_number)
         Assignment.scroll_to(self.user.driver, courses[course_number])
         self.user.select_course(
             title=courses[course_number].get_attribute('data-title'))
@@ -337,7 +336,10 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         self.teacher.login()
         courses = self.teacher.get_course_list()
         course = courses[randint(0, len(courses) - 1)]
+
+        self.teacher.handle_modals()
         self.teacher.select_course(title=course.get_attribute('data-title'))
+
         if not self.__class__.book_sections:
             self.__class__.book_sections = self.teacher.get_book_sections()
             self.teacher.goto_calendar()
@@ -368,20 +370,22 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         start_date_2 = self.teacher.date_string(day_delta=left_delta + 1)
         start_date_3 = self.teacher.date_string(day_delta=left_delta + 2)
         if not self.teacher.date_is_valid(left):
-            start_date_1 = self.class_start_end_dates[0]
-            start_date_2 = self.class_start_end_dates[0] \
-                + datetime.timedelta(1)
-            start_date_3 = self.class_start_end_dates[0] \
-                + datetime.timedelta(2)
+            start_date_1 = (self.class_start_end_dates[0]).strftime('%m/%d/%Y')
+            start_date_2 = (self.class_start_end_dates[0] \
+                + datetime.timedelta(1)).strftime('%m/%d/%Y')
+            start_date_3 = (self.class_start_end_dates[0] \
+                + datetime.timedelta(2)).strftime('%m/%d/%Y')
         right_delta = left_delta + randint(1, 10)
         right = datetime.date.today() + datetime.timedelta(right_delta)
         end_date_1 = self.teacher.date_string(day_delta=right_delta)
         end_date_2 = self.teacher.date_string(day_delta=right_delta + 1)
         end_date_3 = self.teacher.date_string(day_delta=right_delta + 2)
         if not self.teacher.date_is_valid(right):
-            end_date_1 = self.class_start_end_dates[1] - datetime.timedelta(2)
-            end_date_2 = self.class_start_end_dates[1] - datetime.timedelta(1)
-            end_date_3 = self.class_start_end_dates[1]
+            end_date_1 = (self.class_start_end_dates[1] \
+                - datetime.timedelta(2)).strftime('%m/%d/%Y')
+            end_date_2 = (self.class_start_end_dates[1] \
+                 - datetime.timedelta(1)).strftime('%m/%d/%Y')
+            end_date_3 = (self.class_start_end_dates[1]).strftime('%m/%d/%Y')
         print('Left: %s  Right: %s' % (left, right))
         start_time_2 = '6:30 am'
         end_time_2 = '11:59 pm'
@@ -432,17 +436,17 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         start_date_1 = self.teacher.date_string(day_delta=left_delta)
         start_date_2 = self.teacher.date_string(day_delta=left_delta + 1)
         if not self.teacher.date_is_valid(left):
-            start_date_1 = self.class_start_end_dates[0]
-            start_date_2 = self.class_start_end_dates[0] \
-                + datetime.timedelta(1)
+            start_date_1 = (self.class_start_end_dates[0]).strftime('%m/%d/%Y')
+            start_date_2 = (self.class_start_end_dates[0] \
+                + datetime.timedelta(1)).strftime('%m/%d/%Y')
 
         right_delta = left_delta + randint(1, 10)
         right = datetime.date.today() + datetime.timedelta(right_delta)
         end_date_1 = self.teacher.date_string(day_delta=right_delta)
         end_date_2 = self.teacher.date_string(day_delta=right_delta + 1)
         if not self.teacher.date_is_valid(right):
-            end_date_1 = self.class_start_end_dates[1] - 2
-            end_date_2 = self.class_start_end_dates[1] - 1
+            end_date_1 = (self.class_start_end_dates[1] - datetime.timedelta(2)).strftime('%m/%d/%Y')
+            end_date_2 = (self.class_start_end_dates[1] - datetime.timedelta(1)).strftime('%m/%d/%Y')
         print('Left: %s  Right: %s' % (left, right))
         # self.book_sections = self.teacher.get_book_sections()
         reading_start = randint(0, (len(self.book_sections) - 1))
@@ -485,11 +489,11 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         start_date_2 = self.teacher.date_string(day_delta=left_delta + 1)
         start_date_3 = self.teacher.date_string(day_delta=left_delta + 2)
         if not self.teacher.date_is_valid(left):
-            start_date_1 = self.class_start_end_dates[0]
-            start_date_2 = self.class_start_end_dates[0] \
-                + datetime.timedelta(1)
-            start_date_3 = self.class_start_end_dates[0] \
-                + datetime.timedelta(2)
+            start_date_1 = (self.class_start_end_dates[0]).strftime('%m/%d/%Y')
+            start_date_2 = (self.class_start_end_dates[0] \
+                + datetime.timedelta(1)).strftime('%m/%d/%Y')
+            start_date_3 = (self.class_start_end_dates[0] \
+                + datetime.timedelta(2)).strftime('%m/%d/%Y')
 
         right_delta = left_delta + randint(1, 10)
         right = datetime.date.today() + datetime.timedelta(right_delta)
@@ -497,9 +501,9 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         end_date_2 = self.teacher.date_string(day_delta=right_delta + 1)
         end_date_3 = self.teacher.date_string(day_delta=right_delta + 2)
         if not self.teacher.date_is_valid(right):
-            end_date_1 = self.class_start_end_dates[1] - 2
-            end_date_2 = self.class_start_end_dates[1] - 1
-            end_date_3 = self.class_start_end_dates[1]
+            end_date_1 = (self.class_start_end_dates[1] - datetime.timedelta(2)).strftime('%m/%d/%Y')
+            end_date_2 = (self.class_start_end_dates[1] - datetime.timedelta(1)).strftime('%m/%d/%Y')
+            end_date_3 = (self.class_start_end_dates[1]).strftime('%m/%d/%Y')
         print('Left: %s  Right: %s' % (left, right))
         # self.book_sections = self.teacher.get_book_sections()
         reading_start = randint(0, (len(self.book_sections) - 1))
@@ -541,13 +545,13 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         left = datetime.date.today() + datetime.timedelta(left_delta)
         start_date_1 = self.teacher.date_string(day_delta=left_delta)
         if not self.teacher.date_is_valid(left):
-            start_date_1 = self.class_start_end_dates[0]
+            start_date_1 = (self.class_start_end_dates[0]).strftime('%m/%d/%Y')
 
         right_delta = left_delta + randint(1, 10)
         right = datetime.date.today() + datetime.timedelta(right_delta)
         end_date_1 = self.teacher.date_string(day_delta=right_delta)
         if not self.teacher.date_is_valid(right):
-            end_date_1 = self.class_start_end_dates[1] - 2
+            end_date_1 = (self.class_start_end_dates[1] - datetime.timedelta(2)).strftime('%m/%d/%Y')
         print('Left: %s  Right: %s' % (left, right))
         # self.book_sections = self.teacher.get_book_sections()
         reading_start = randint(0, (len(self.book_sections) - 1))
@@ -586,13 +590,13 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         left = datetime.date.today() + datetime.timedelta(left_delta)
         start_date_1 = self.teacher.date_string(day_delta=left_delta)
         if not self.teacher.date_is_valid(left):
-            start_date_1 = self.class_start_end_dates[0]
+            start_date_1 = (self.class_start_end_dates[0]).strftime('%m/%d/%Y')
 
         right_delta = left_delta + randint(1, 10)
         right = datetime.date.today() + datetime.timedelta(right_delta)
         end_date_1 = self.teacher.date_string(day_delta=right_delta)
         if not self.teacher.date_is_valid(right):
-            end_date_1 = self.class_start_end_dates[1] - 2
+            end_date_1 = (self.class_start_end_dates[1] - datetime.timedelta(2)).strftime('%m/%d/%Y')
         print('Left: %s  Right: %s' % (left, right))
         # self.book_sections = self.teacher.get_book_sections()
         reading_start = randint(0, (len(self.book_sections) - 1))
@@ -634,13 +638,13 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         left = datetime.date.today() + datetime.timedelta(left_delta)
         start_date = self.teacher.date_string(day_delta=left_delta)
         if not self.teacher.date_is_valid(left):
-            start_date = self.class_start_end_dates[0]
+            start_date = (self.class_start_end_dates[0]).strftime('%m/%d/%Y')
 
         right_delta = left_delta + randint(1, 10)
         right = datetime.date.today() + datetime.timedelta(right_delta)
         end_date = self.teacher.date_string(day_delta=right_delta)
         if not self.teacher.date_is_valid(right):
-            end_date = self.class_start_end_dates[1] - 2
+            end_date = (self.class_start_end_dates[1] - datetime.timedelta(2)).strftime('%m/%d/%Y')
         self.teacher.add_assignment(
             assignment='reading',
             args={
@@ -755,6 +759,13 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         code = self.teacher.get_enrollment_code('First')
         assert(code == 'https://tutor-qa.openstax.org/enroll/767449'), \
             '%s is not the correct enrollment URL' % code
+
+    @pytest.mark.skipif(str(316) not in TESTS, reason='Excluded')
+    def test_teacher_handle_modals_316(self):
+        self.teacher.handle_modals()
+        self.teacher.close_beta_windows()
+        time.sleep(3)
+        assert("modal closed")
 
 
 '''class TestStaxingConceptCoachTeacher(unittest.TestCase):
