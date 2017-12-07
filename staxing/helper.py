@@ -32,7 +32,7 @@ try:
 except ImportError:  # pragma: no cover
     from page_load import SeleniumWait as Page
 
-__version__ = '0.0.41'
+__version__ = '0.0.42'
 
 
 class Helper(object):
@@ -284,15 +284,20 @@ class Helper(object):
         Assignment.scroll_to(self.driver, target)
         return target
 
-    # def handle_modals(self):
-    #     """If there is a modal blocking the view and affects the tests, clears the modals."""
-    #     webdriver.find(By.CLASS_NAME, 'debug-toggle-link').click
-    #     return self
-        # try:
-        # modal = webdriver.find(By.CLASS_NAME, 'joyride-tooltip')
-        # except NoSuchElementException:
-        #     return False
-        # return modal.click
+    def url_parse(self, site):
+        """Parse the url into a valid url"""
+        parse = list(
+            urlparse(
+                site if urlparse(site).scheme
+                else '%s%s' % ('//', site)
+            )
+        )
+        parse[0] = b'https'
+        for index, value in enumerate(parse):
+            parse[index] = value.decode('utf-8') if isinstance(value, bytes) \
+                else value
+        parse = ParseResult(*parse)
+        return parse.geturl()
 
 
 class User(Helper):
@@ -347,6 +352,7 @@ class User(Helper):
         """
         self.username = username
         self.password = password
+        """
         parse = list(
             urlparse(
                 site if urlparse(site).scheme
@@ -358,7 +364,8 @@ class User(Helper):
             parse[index] = value.decode('utf-8') if isinstance(value, bytes) \
                 else value
         parse = ParseResult(*parse)
-        self.url = parse.geturl()
+        self.url = url_parse(site)
+        """
         self.email = email
         self.email_username = email_username
         self.email_password = email_password
@@ -401,7 +408,7 @@ class User(Helper):
         """
         username = self.username if not username else username
         password = self.password if not password else password
-        url_address = self.url if not url else url
+        url_address = self.url if not url else self.url_parse(url)
         # open the URL
         self.get(url_address)
         self.page.wait_for_page_load()
@@ -830,22 +837,53 @@ class Teacher(User):
     def get_enrollment_code(self, section_name=None, random=False):
         """Return the enrollment code for a class section."""
         print('Enter: get_enrollment_code')
-        if 'settings' not in self.driver.current_url:
-            self.goto_course_roster()
-        self.find(By.XPATH, '//a[text()="%s"]' % section_name).click()
-        self.wait.until(
-            expect.element_to_be_clickable(
-                (By.CLASS_NAME, 'show-enrollment-code')
-            )
-        ).click()
-        sleep(1)
-        code = self.wait.until(
-            expect.presence_of_element_located(
-                (By.CLASS_NAME, 'code')
-            )
-        )
+        if 'settings' not in self.current_url():
+            self.goto_course_settings()
+        # self.find(By.XPATH, '//a[h2[contains(text(), "access")]]').click()
+        try:
+            enrollment_urls = self.find_all(By.CSS_SELECTOR, '[readonly]')
+            if section_name:
+                enrollment_url = self.find(
+                    By.XPATH,
+                    '//label[contains(text(), "%s")]/input' % section_name
+                ).get_attribute('value')
+            elif random:
+                enrollment_url = \
+                    enrollment_urls[randint(0, len(enrollment_urls))] \
+                    .get_attribute('value')
+            else:
+                enrollment_url = \
+                    enrollment_urls[0] \
+                    .get_attribute('value')
+        except:
+            self.find(
+                By.XPATH,
+                '//a[.//p[contains(text(), "direct")]]'
+            ).click()
+            try:
+                self.find(
+                    By.XPATH,
+                    '//button[contains(text(), "sure")]'
+                ).click()
+            except:
+                pass
+            enrollment_urls = self.find_all(By.CSS_SELECTOR, '[readonly]')
+            if section_name:
+                enrollment_url = self.find(
+                    By.XPATH,
+                    '//label[contains(text(), "%s")]/input' % section_name
+                ).get_attribute('value')
+            elif random:
+                enrollment_url = \
+                    enrollment_urls[randint(0, len(enrollment_urls))] \
+                    .get_attribute('value')
+            else:
+                enrollment_url = \
+                    enrollment_urls[0] \
+                    .get_attribute('value')
+
         print('Exit: get_enrollment_code')
-        return '%s' % code.text.strip()
+        return enrollment_url
 
     def get_book_sections(self):
         """Return a list of book sections."""
@@ -901,6 +939,7 @@ class Teacher(User):
             raise CourseSelectionError('No course selected')
         self.goto_course_settings()
         self.find(By.LINK_TEXT, 'DATES AND TIME').click()
+#         self.find(By.XPATH, '//a[h2[contains(text(), "DATES")]]').click()
         course_time_periods = self.find_all(
             # By.CLASS_NAME,
             # 'dates-and-times'
