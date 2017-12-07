@@ -284,6 +284,21 @@ class Helper(object):
         Assignment.scroll_to(self.driver, target)
         return target
 
+    def url_parse(self, site):
+        """Parse the url into a valid url"""
+        parse = list(
+            urlparse(
+                site if urlparse(site).scheme
+                else '%s%s' % ('//', site)
+            )
+        )
+        parse[0] = b'https'
+        for index, value in enumerate(parse):
+            parse[index] = value.decode('utf-8') if isinstance(value, bytes) \
+                else value
+        parse = ParseResult(*parse)
+        return parse.geturl()
+
 
 class User(Helper):
     """User parent class."""
@@ -337,6 +352,7 @@ class User(Helper):
         """
         self.username = username
         self.password = password
+        """
         parse = list(
             urlparse(
                 site if urlparse(site).scheme
@@ -348,7 +364,8 @@ class User(Helper):
             parse[index] = value.decode('utf-8') if isinstance(value, bytes) \
                 else value
         parse = ParseResult(*parse)
-        self.url = parse.geturl()
+        self.url = url_parse(site)
+        """
         self.email = email
         self.email_username = email_username
         self.email_password = email_password
@@ -391,7 +408,7 @@ class User(Helper):
         """
         username = self.username if not username else username
         password = self.password if not password else password
-        url_address = self.url if not url else url
+        url_address = self.url if not url else self.url_parse(url)
         # open the URL
         self.get(url_address)
         self.page.wait_for_page_load()
