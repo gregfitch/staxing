@@ -284,17 +284,6 @@ class Helper(object):
         Assignment.scroll_to(self.driver, target)
         return target
 
-    # def handle_modals(self):
-    #     """If there is a modal blocking the view and affects the tests, clears the modals."""
-    #     webdriver.find(By.CLASS_NAME, 'debug-toggle-link').click
-    #     return self
-        # try:
-        # modal = webdriver.find(By.CLASS_NAME, 'joyride-tooltip')
-        # except NoSuchElementException:
-        #     return False
-        # return modal.click
-
-
 class User(Helper):
     """User parent class."""
 
