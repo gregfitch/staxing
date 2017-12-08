@@ -16,7 +16,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from staxing.assignment import Assignment
 from staxing.helper import Helper, Teacher, Student, Admin, ContentQA, User
 
-__version__ = '0.0.9'
+__version__ = '0.0.10'
 TESTS = os.getenv(
     'CASELIST',
     str([
@@ -763,8 +763,8 @@ class TestStaxingTutorTeacher(unittest.TestCase):
     @pytest.mark.skipif(str(315) not in TESTS, reason='Excluded')
     def test_get_enrollment_code_315(self):
         """No test placeholder."""
-        code = self.teacher.get_enrollment_code('First')
-        assert(code == 'https://tutor-qa.openstax.org/enroll/767449'), \
+        code = self.teacher.get_enrollment_code()
+        assert('enroll' in code and code[-6:].isdigit()), \
             '%s is not the correct enrollment URL' % code
 
     @pytest.mark.skipif(str(316) not in TESTS, reason='Excluded')
