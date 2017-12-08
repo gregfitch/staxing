@@ -10,7 +10,6 @@ from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.chrome import options
 from selenium.webdriver.common.by import By
 from staxing.assignment import Assignment
-from staxing.helper import Helper
 
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as expect

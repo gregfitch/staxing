@@ -854,7 +854,7 @@ class Teacher(User):
         self.close_beta_windows()
         sleep(1)
         self.goto_calendar()
-        #self.page.wait_for_page_load()
+        # self.page.wait_for_page_load()
         self.assign.open_assignment_menu(self.driver)
         print('Use Reading index')
         # self.wait.until(
