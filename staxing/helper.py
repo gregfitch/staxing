@@ -32,7 +32,7 @@ try:
 except ImportError:  # pragma: no cover
     from page_load import SeleniumWait as Page
 
-__version__ = '0.0.42'
+__version__ = '0.0.43'
 
 
 class Helper(object):
@@ -144,7 +144,8 @@ class Helper(object):
             print('Driver type: %s' % driver)
         else:
             option_set = options.Options()
-            option_set.add_argument("disable-infobars")
+            option_set.add_argument('disable-infobars')
+            option_set.add_argument('disable-geolocation')
             option_set.add_experimental_option(
                 'prefs', {
                     'credentials_enable_service': False,
@@ -179,16 +180,16 @@ class Helper(object):
         """Headless Chrome initiator."""
         print('Start headless browser')
         option_set = options.Options()
-        option_set.add_arguments("test-type")
-        option_set.add_arguments("start-maximized")
-        option_set.add_arguments("--js-flags=--expose-gc")
-        option_set.add_arguments("--enable-precise-memory-info")
+        option_set.add_argument('test-type')
+        option_set.add_argument('start-maximized')
+        option_set.add_argument('js-flags=--expose-gc')
+        option_set.add_argument('enable-precise-memory-info')
         option_set.add_argument('headless')
         option_set.add_argument('disable-notifications')
         option_set.add_argument('disable-gpu')
         option_set.add_argument('disable-infobars')
-        option_set.add_arguments("--disable-default-apps")
-        option_set.add_arguments("test-type=browser")
+        option_set.add_argument('disable-default-apps')
+        option_set.add_argument('test-type=browser')
         option_set.add_experimental_option(
                 'prefs', {
                     'credentials_enable_service': False,
@@ -352,20 +353,7 @@ class User(Helper):
         """
         self.username = username
         self.password = password
-        """
-        parse = list(
-            urlparse(
-                site if urlparse(site).scheme
-                else '%s%s' % ('//', site)
-            )
-        )
-        parse[0] = b'https'
-        for index, value in enumerate(parse):
-            parse[index] = value.decode('utf-8') if isinstance(value, bytes) \
-                else value
-        parse = ParseResult(*parse)
-        self.url = url_parse(site)
-        """
+        self.url = self.url_parse(site)
         self.email = email
         self.email_username = email_username
         self.email_password = email_password
@@ -576,7 +564,7 @@ class User(Helper):
     def is_modal_present(self, by, value):
         try:
             self.find(By.CLASS_NAME, 'joyride-tooltip__button--primary')
-            
+
         except:
             return False
         return True
@@ -650,7 +638,7 @@ class User(Helper):
         try:
             self.find(By.CLASS_NAME, 'btn-primary').click()
         except:
-            pass    
+            pass
         print('Select course complete')
         return self
 
