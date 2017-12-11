@@ -573,14 +573,23 @@ class User(Helper):
             # Different page, but uses the same logic and link text
             self.find(By.CSS_SELECTOR, '[data-method]').click()
 
+    def is_modal_present(self, by, value):
+        try:
+            self.find(By.CLASS_NAME, 'joyride-tooltip__button--primary')
+            
+        except:
+            return False
+        return True
+
     def close_beta_windows(self):
         """Close the beta windows if it shows."""
         store_wait = self.wait_time
         self.change_wait_time(1)
+        while self.is_modal_present(By.CLASS_NAME, 'joyride-tooltip__button--primary'):
+            self.find(By.CLASS_NAME, 'joyride-tooltip__button--primary').click()
         try:
-            self.find(By.CSS_SELECTOR, '.joyride-tooltip__close').click()
+            self.find(By.XPATH, '//button[span[text()="Submit"]]')
         except:
-            # beta message not seen
             pass
         try:
             self.find(By.CSS_SELECTOR, '.onboarding-nag')
@@ -590,6 +599,7 @@ class User(Helper):
         except:
             # onboarding nag isn't shown
             pass
+
         self.change_wait_time(store_wait)
 
     def select_course(self, title=None, appearance=None):
@@ -636,6 +646,11 @@ class User(Helper):
         select.click()
         self.page.wait_for_page_load()
         self.close_beta_windows()
+        # agree the terms of use
+        try:
+            self.find(By.CLASS_NAME, 'btn-primary').click()
+        except:
+            pass    
         print('Select course complete')
         return self
 
@@ -688,6 +703,7 @@ class Teacher(User):
         """Add an assignment."""
         print('Assignment: %s' % args['title'])
         self.goto_calendar()
+        self.assign.open_assignment_menu(self.driver) #
         self.assign.add[assignment](
             driver=self.driver,
             name=args['title'],
@@ -873,20 +889,27 @@ class Teacher(User):
         """Return a list of book sections."""
         print('Enter: Get Book Sections')
         print('Retrieve the book section list')
+        self.close_beta_windows()
         sleep(1)
         self.goto_calendar()
-        self.page.wait_for_page_load()
+        # self.page.wait_for_page_load()
         self.assign.open_assignment_menu(self.driver)
         print('Use Reading index')
+        # self.wait.until(
+            # expect.element_to_be_clickable(
+                # (By.XPATH, '//a[contains(text(), "Add Reading")]')
+        self.find(By.LINK_TEXT, 'Add Reading').click()
+            # )
+        # ).click()
+        self.page.wait_for_page_load()
+        # selector = self.find(By.ID, 'reading-select')
+        # Assignment.scroll_to(self.driver, selector)
+        # selector.click()
         self.wait.until(
             expect.element_to_be_clickable(
-                (By.LINK_TEXT, 'Add Reading')
+                (By.ID, 'reading-select')
             )
         ).click()
-        self.page.wait_for_page_load()
-        selector = self.find(By.ID, 'reading-select')
-        Assignment.scroll_to(self.driver, selector)
-        selector.click()
         self.page.wait_for_page_load()
         print('Open the entire book')
         for chapter in self.find_all(By.CSS_SELECTOR,
@@ -915,11 +938,16 @@ class Teacher(User):
         if 'course' not in self.current_url():
             raise CourseSelectionError('No course selected')
         self.goto_course_settings()
-        self.find(By.XPATH, '//a[h2[contains(text(), "DATES")]]').click()
+        self.find(By.LINK_TEXT, 'DATES AND TIME').click()
+#         self.find(By.XPATH, '//a[h2[contains(text(), "DATES")]]').click()
         course_time_periods = self.find_all(
+            # By.CLASS_NAME,
+            # 'dates-and-times'
             By.CSS_SELECTOR,
+            # '.dates-and-times'
             '.dates-and-times div'
         )
+        print ("course_time_periods", course_time_periods)
         if len(course_time_periods) < 3:
             raise CourseSelectionError(
                 'Course start and end dates not found',
@@ -987,6 +1015,12 @@ class Teacher(User):
             self.find(By.CLASS_NAME, 'fa-caret-left').click()
             sleep(0.2)
             cal_month, cal_year = self.get_month_year()
+
+    def handle_modals(self):
+        """Click the pi button to make the training wheels reappear and clear them."""
+        self.find(By.CLASS_NAME, 'debug-toggle-link').click()
+        sleep(1)
+        return self
 
 
 class Student(User):

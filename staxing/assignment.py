@@ -328,6 +328,7 @@ class Assignment(object):
         path += '//div[contains(@class,"react-datepicker__input")]//input'
         date_element = start.find_element(By.XPATH, path)
         # get calendar to correct month
+        
         split = date.split('/')
         change = datetime.date(int(split[2]), int(split[0]), int(split[1]))
         time.sleep(0.15)
