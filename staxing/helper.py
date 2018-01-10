@@ -19,7 +19,7 @@ from selenium.webdriver.chrome import options, service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.webdriver.support import expected_conditions as expect
-from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support.ui import Select, WebDriverWait
 from time import sleep
 from urllib.parse import urlparse, ParseResult
 
@@ -68,18 +68,19 @@ class Helper(object):
             raise TypeError('A Sauce Labs user is required for remote testing')
         self.pasta = pasta_user
         self.remote_driver = remote_driver
+        self.driver_type = driver_type.lower()
         if existing_driver:
             self.driver = existing_driver
         else:
             driver = driver_type if not pasta_user else 'saucelabs'
-            self.driver = self.run_on(driver_type=driver,
-                                      pasta_user=self.pasta,
-                                      capabilities=capabilities)
+            self.driver = self.run_on(
+                driver_type=driver,
+                pasta_user=self.pasta,
+                capabilities=capabilities)
             self.driver.implicitly_wait(wait_time)
         self.wait = WebDriverWait(self.driver, wait_time)
         self.wait_time = wait_time
         self.page = Page(self.driver, self.wait_time)
-        # super(Helper, self).__init__(**kwargs)
         super(Helper, self).__init__()
 
     def __enter__(self):
@@ -99,7 +100,7 @@ class Helper(object):
         self.wait = None
         try:
             self.driver.quit()
-        except:
+        except Exception:
             pass
 
     @classmethod
@@ -135,13 +136,10 @@ class Helper(object):
         wait (int): standard time, in seconds, to wait for Selenium commands
         opera_driver (string): Chromium location
         """
-        print('Driver type input: %s' % driver_type)
         if pasta_user:
             driver = 'saucelabs'
-            print('Driver type: %s' % driver)
-        elif driver_type and driver_type is not 'chrome':
+        elif driver_type and 'chrome' not in driver_type:
             driver = driver_type
-            print('Driver type: %s' % driver)
         else:
             option_set = options.Options()
             option_set.add_argument('disable-infobars')
@@ -154,14 +152,18 @@ class Helper(object):
                     }
                 }
             )
-            driver = 'chrome'
-            print('Driver type: %s' % driver)
+            if 'headless' in driver_type:
+                option_set.add_argument('headless')
+                driver = 'headlesschrome'
+            else:
+                driver = 'chrome'
         try:
             return {
                 'firefox': lambda: webdriver.Firefox(),
                 'chrome': lambda: webdriver.Chrome(
                     chrome_options=option_set),
-                'headlesschrome': lambda: self.start_headless(),
+                'headlesschrome': lambda: webdriver.Chrome(
+                    chrome_options=option_set),
                 'ie': lambda: webdriver.Ie(),
                 'opera': lambda: self.start_opera(self.opera_driver),
                 'safari': lambda: webdriver.Safari(),
@@ -176,46 +178,6 @@ class Helper(object):
         except Exception as err:
             raise err
 
-    def start_headless(self):
-        """Headless Chrome initiator."""
-        print('Start headless browser')
-        option_set = options.Options()
-        option_set.add_argument('test-type')
-        option_set.add_argument('start-maximized')
-        option_set.add_argument('js-flags=--expose-gc')
-        option_set.add_argument('enable-precise-memory-info')
-        option_set.add_argument('headless')
-        option_set.add_argument('disable-notifications')
-        option_set.add_argument('disable-gpu')
-        option_set.add_argument('disable-infobars')
-        option_set.add_argument('disable-default-apps')
-        option_set.add_argument('test-type=browser')
-        option_set.add_experimental_option(
-                'prefs', {
-                    'credentials_enable_service': False,
-                    'profile': {
-                        'password_manager_enabled': False
-                    }
-                }
-            )
-        option_set.binary_location = os.getenv(
-            'CHROME_CANARY',
-            '/Applications/Google Chrome Canary.app' +
-            '/Contents/MacOS/Google Chrome Canary'
-        )
-        webdriver_service = service.Service(
-            os.getenv(
-                'CHROMEDRIVER',
-                '/Applications/chromedriver'
-            )
-        )
-        webdriver_service.start()
-        print('Service started; returning Remote webdriver')
-        return webdriver.Remote(
-            webdriver_service.service_url,
-            option_set.to_capabilities()
-        )
-
     def start_opera(self, location):
         """Opera initiator."""
         webdriver_service = service.Service(location)
@@ -228,7 +190,7 @@ class Helper(object):
     def change_wait_time(self, new_wait):
         """Change the max action wait time."""
         if new_wait <= 0:
-            raise ValueError('Wait time must be 1 or higher.')
+            raise ValueError('Wait time must be greater than zero (0).')
         self.driver.implicitly_wait(new_wait)
         self.wait = WebDriverWait(self.driver, new_wait)
         self.wait_time = new_wait
@@ -266,7 +228,7 @@ class Helper(object):
             self.driver.set_window_position(x_, y_)
             sleep(1.0)
 
-    def sleep(self, seconds=1):
+    def sleep(self, seconds=1.0):
         """Stop execution for the specified time in seconds."""
         sleep(seconds)
 
@@ -280,13 +242,11 @@ class Helper(object):
 
     def scroll_to(self, target):
         """Scroll the browser window to bring the target into view."""
-        if not target:
-            raise ValueError('Web element not provided')
         Assignment.scroll_to(self.driver, target)
         return target
 
     def url_parse(self, site):
-        """Parse the url into a valid url"""
+        """Parse the url into a valid url."""
         parse = list(
             urlparse(
                 site if urlparse(site).scheme
@@ -368,24 +328,21 @@ class User(Helper):
                                    **kwargs)
 
     def accept_contract(self):
-        """
-        Contract acceptance for Terms of Service and the Privacy Policy.
-        """
+        """Contract acceptance for Terms of Service and the Privacy Policy."""
         checkbox_id = 'agreement_i_agree' if 'accounts' in \
             self.current_url() else 'i_agree'
         try:
             target = self.find(By.ID, checkbox_id)
-            Assignment.scroll_to(self.driver, target)
+            self.scroll_to(target)
             target.click()
             target = self.find(By.ID, 'agreement_submit')
-            Assignment.scroll_to(self.driver, target)
+            self.scroll_to(target)
             target.click()
         except Exception as e:
             raise e
 
     def login(self, url=None, username=None, password=None):
-        """
-        Tutor login control.
+        """Tutor login control.
 
         If parameters are not passed, log in using the class values.
         Branching to deal with standard or compact screen widths
@@ -399,7 +356,6 @@ class User(Helper):
         url_address = self.url if not url else self.url_parse(url)
         # open the URL
         self.get(url_address)
-        self.page.wait_for_page_load()
         if 'tutor' in url_address:
             login = self.wait.until(
                 expect.presence_of_element_located(
@@ -416,9 +372,7 @@ class User(Helper):
         text_located = re.search(r'openstax', src.lower())
         self.sleep(1)
         if not text_located:
-            raise self.LoginError(
-                'Non-OpenStax URL: %s' % self.driver.current_url
-            )
+            raise LoginError('Non-OpenStax URL: %s' % self.driver.current_url)
         # enter the username and password
         self.find(By.ID, 'login_username_or_email').send_keys(username)
         self.find(By.CSS_SELECTOR, '.primary').click()
@@ -439,7 +393,6 @@ class User(Helper):
                 raise e
         self.page.wait_for_page_load()
         source = self.driver.page_source.lower()
-        print('Reached Terms/Privacy')
         while 'terms of use' in source or 'privacy policy' in source:
             self.accept_contract()
             self.page.wait_for_page_load()
@@ -476,22 +429,12 @@ class User(Helper):
                 self.page.wait_for_page_load()
             else:
                 raise HTTPError('Not currently on an OpenStax Tutor webpage:' +
-                                '%s' % self.current_url())
+                                ' %s' % self.current_url())
         except Exception as ex:
             raise ex
 
     def get_course_list(self, closed=False):
-        """
-        Return a list of available courses.
-
-        ToDo: go to a closed course
-        """
-        print(self.current_url())
-        '''print(
-            self.driver
-            .find_element(By.ID, 'ox-react-root-container')
-            .get_attribute('outerHTML')
-        )'''
+        """Return a list of available courses."""
         self.wait.until(
             expect.visibility_of_element_located(
                 (By.TAG_NAME, 'h1')
@@ -502,37 +445,48 @@ class User(Helper):
             '.my-courses-current-section .my-courses-item'
         )
         if len(courses) == 0:
-            print('No courses found: %s' % courses)
+            print('No courses found')
             return []
         for position, course in enumerate(courses):
             print('%s : "%s"' % (position, course.get_attribute('data-title')))
         return courses
 
-    def open_user_menu(self):
-        """
-        Hamburger (user) menu opener.
-
-        ToDo: branching to handle if a toggle is already open
-        """
-        if self.get_window_size('width') <= self.CONDENSED_WIDTH:
-            # compressed window display on Tutor
-            self.wait.until(
-                expect.visibility_of_element_located(
-                    (By.CLASS_NAME, 'navbar-toggle')
-                )
-            ).click()
+    def open_action_menu(self):
+        """Course action menu opener."""
         self.wait.until(
             expect.visibility_of_element_located(
-                (By.CSS_SELECTOR, '.user-actions-menu')
+                (By.ID, 'actions-menu')
             )
         ).click()
+
+    def open_user_menu(self):
+        """Hamburger (user) menu opener."""
+        self.wait.until(
+            expect.visibility_of_element_located(
+                (By.ID, 'user-menu')
+            )
+        ).click()
+
+    def goto_menu_item(self, item):
+        """Go to a specific user menu item."""
+        if item.lower() == 'my account' or item.lower() == 'log out':
+            self.open_user_menu()
+        else:
+            self.open_action_menu()
+        print('Select menu item %s' % item)
+        self.wait.until(
+            expect.element_to_be_clickable(
+                (By.LINK_TEXT, item)
+            )
+        ).click()
+        self.page.wait_for_page_load()
 
     def tutor_logout(self):
         """Tutor logout helper."""
         self.open_user_menu()
         self.wait.until(
             expect.visibility_of_element_located(
-                (By.CSS_SELECTOR, '.user-actions-menu [type=submit]')
+                (By.CSS_SELECTOR, 'input[type=submit]')
             )
         ).click()
         self.page.wait_for_page_load()
@@ -563,9 +517,8 @@ class User(Helper):
 
     def is_modal_present(self, by, value):
         try:
-            self.find(By.CLASS_NAME, 'joyride-tooltip__button--primary')
-
-        except:
+            self.find(by, value)
+        except Exception:
             return False
         return True
 
@@ -573,40 +526,40 @@ class User(Helper):
         """Close the beta windows if it shows."""
         store_wait = self.wait_time
         self.change_wait_time(1)
-        while self.is_modal_present(By.CLASS_NAME, 'joyride-tooltip__button--primary'):
-            self.find(By.CLASS_NAME, 'joyride-tooltip__button--primary').click()
+        while self.is_modal_present(By.CLASS_NAME,
+                                    'joyride-tooltip__button--primary'):
+            self.sleep(0.5)
+            self.find(By.CLASS_NAME, 'joyride-tooltip__button--primary') \
+                .click()
         try:
             self.find(By.XPATH, '//button[span[text()="Submit"]]')
-        except:
+        except Exception:
             pass
         try:
             self.find(By.CSS_SELECTOR, '.onboarding-nag')
             responses = self.find_all(By.CSS_SELECTOR, '.footer .btn')
             responses[randint(0, len(responses) - 1)].click()
             self.find(By.CSS_SELECTOR, '.footer.got-it button').click()
-        except:
+        except Exception:
             # onboarding nag isn't shown
             pass
-
+        # reset wait time
         self.change_wait_time(store_wait)
 
     def select_course(self, title=None, appearance=None):
         """Select course."""
         print('Select course "%s" / "%s"' % (title, appearance))
-        print('Currently at: %s' % self.current_url())
         if 'dashboard' not in self.current_url():
             # If not at the dashboard, try to load it
-            print('Go to course list')
             self.goto_course_list()
-            self.page.wait_for_page_load()
         if 'dashboard' not in self.current_url():
             # Only has one course and the user is at the dashboard so return
             print('Single course; select course complete')
             return
         if appearance:
-            if 'sociology' in appearance:
+            if 'sociology' in appearance.lower():
                 appearance = 'intro_sociology'
-            elif 'biology' in appearance:
+            elif 'biology' in appearance.lower():
                 appearance = 'college_biology'
             else:
                 appearance = 'college_physics'
@@ -617,9 +570,8 @@ class User(Helper):
             uses_option = 'appearance'
             course = appearance
         else:
-            raise self.LoginError('Unknown course selection "%s"' %
-                                  title if title else appearance)
-        print('//div[@data-%s="%s"]//a' % (uses_option, course))
+            raise LoginError('Unknown course selection "%s"' %
+                             title if title else appearance, None)
         select = self.wait.until(
             expect.element_to_be_clickable(
                 (
@@ -636,25 +588,29 @@ class User(Helper):
         self.close_beta_windows()
         # agree the terms of use
         try:
+            old_wait = self.wait_time
+            self.change_wait_time(1.5)
             self.find(By.CLASS_NAME, 'btn-primary').click()
-        except:
+        except Exception:
             pass
-        print('Select course complete')
+        finally:
+            if old_wait != self.wait_time:
+                self.change_wait_time(old_wait)
         return self
 
     def view_reference_book(self):
         """Access the reference book."""
         try:
+            # try the calendar button
             self.find(
-                By.XPATH, '//div/a[contains(@class,"view-reference-guide")]'
-            ).click()
+                By.CSS_SELECTOR,
+                '.calendar-header .view-reference-guide') \
+                .click()
             return
-        except:
+        except Exception:
             pass
-        self.open_user_menu()
-        self.find(
-            By.XPATH, '//li/a[contains(@class,"view-reference-guide")]'
-        ).click()
+        # try the user menu link
+        self.goto_menu_item('Browse the Book')
 
 
 class Teacher(User):
@@ -691,7 +647,7 @@ class Teacher(User):
         """Add an assignment."""
         print('Assignment: %s' % args['title'])
         self.goto_calendar()
-        self.assign.open_assignment_menu(self.driver) #
+        self.assign.open_assignment_menu(self.driver)
         self.assign.add[assignment](
             driver=self.driver,
             name=args['title'],
@@ -739,30 +695,14 @@ class Teacher(User):
             feedback=args['feedback'] if 'feedback' in args else None,
         )
 
-    def goto_menu_item(self, item):
-        """Go to a specific user menu item."""
-        print('Enter: goto_menu_item')
-        if 'course' in self.current_url():
-            print('Open user menu')
-            self.open_user_menu()
-            print('Select menu item %s' % item)
-            self.wait.until(
-                expect.element_to_be_clickable((By.LINK_TEXT, item))
-            ).click()
-            self.page.wait_for_page_load()
-        print('Exit: goto_menu_item')
-
     def goto_calendar(self):
         """Return the teacher to the calendar dashboard."""
-        print('Enter: goto_calendar')
-        print('Try to return to the calendar')
-        self.goto_menu_item('Dashboard')
+        if not self.current_url().endswith('/t'):
+            self.goto_menu_item('Dashboard')
         self.page.wait_for_page_load()
-        print('Exit: goto_calendar')
 
     def goto_performance_forecast(self):
         """Access the performance forecast page."""
-        print('Enter: goto_performance_forecast')
         self.goto_menu_item('Performance Forecast')
         timer = 0
         while timer < 10:
@@ -774,151 +714,99 @@ class Teacher(User):
                     )
                 )
                 timer = 10
-            except:
+            except Exception:
                 timer = timer + 1
-        print('Exit: goto_performance_forecast')
 
     def goto_student_scores(self):
         """Access the student scores page."""
-        print('Enter: goto_student_scores')
         self.goto_menu_item('Student Scores')
-        print('Exit: goto_student_scores')
 
     def goto_course_roster(self):
         """Access the course roster page."""
-        print('Enter: goto_course_roster')
         self.goto_menu_item('Course Roster')
-        print('Exit: goto_course_roster')
 
     def goto_course_settings(self):
         """Access the course settings page."""
-        print('Enter: goto_course_settings')
         self.goto_menu_item('Course Settings')
-        print('Exit: goto_course_settings')
 
     def get_course_sections(self):
         """Return the list of course sections currently active."""
-        self.goto_course_roster()
-        tabs = self.find_all(By.CSS_SELECTOR, '.nav-tabs [role]')
+        if 'roster' not in self.current_url():
+            self.goto_course_roster()
+        try:
+            self.find(By.CSS_SELECTOR, '.no-periods-message')
+            return []
+        except Exception:
+            pass
+        tabs = self.find_all(By.CSS_SELECTOR, '.nav-tabs h2')
         return [tab.get_attribute('innerHTML') for tab in tabs]
 
     def add_course_section(self, section_name):
         """Add a section to the course."""
-        print('Enter: add_course_section')
-        if 'settings' not in self.current_url():
+        if 'roster' not in self.current_url():
             self.goto_course_roster()
-        self.find(By.XPATH, '//button[i[contains(@class,"fa-plus")]]').click()
+        self.find(By.CSS_SELECTOR, '.add-period').click()
         self.wait.until(
             expect.visibility_of_element_located(
-                (By.XPATH,
-                 '//div[contains(@class,"teacher-edit-period-form")]' +
-                 '//input[@type="text"]')
+                (By.CSS_SELECTOR, '.form-control')
             )
         ).send_keys(section_name)
-        self.wait.until(
-            expect.element_to_be_clickable(
-                (By.XPATH, '//button[contains(@class,"-edit-period-confirm")]')
-            )
-        ).click()
-        print('Exit: add_course_section')
+        self.find(By.CSS_SELECTOR, '.-edit-period-confirm').click()
 
     def get_enrollment_code(self, section_name=None, random=False):
         """Return the enrollment code for a class section."""
-        print('Enter: get_enrollment_code')
         if 'settings' not in self.current_url():
             self.goto_course_settings()
-        # self.find(By.XPATH, '//a[h2[contains(text(), "access")]]').click()
-        try:
-            enrollment_urls = self.find_all(By.CSS_SELECTOR, '[readonly]')
-            if section_name:
-                enrollment_url = self.find(
-                    By.XPATH,
-                    '//label[contains(text(), "%s")]/input' % section_name
-                ).get_attribute('value')
-            elif random:
-                enrollment_url = \
-                    enrollment_urls[randint(0, len(enrollment_urls))] \
-                    .get_attribute('value')
-            else:
-                enrollment_url = \
-                    enrollment_urls[0] \
-                    .get_attribute('value')
-        except:
-            self.find(
-                By.XPATH,
-                '//a[.//p[contains(text(), "direct")]]'
-            ).click()
-            try:
-                self.find(
-                    By.XPATH,
-                    '//button[contains(text(), "sure")]'
-                ).click()
-            except:
-                pass
-            enrollment_urls = self.find_all(By.CSS_SELECTOR, '[readonly]')
-            if section_name:
-                enrollment_url = self.find(
-                    By.XPATH,
-                    '//label[contains(text(), "%s")]/input' % section_name
-                ).get_attribute('value')
-            elif random:
-                enrollment_url = \
-                    enrollment_urls[randint(0, len(enrollment_urls))] \
-                    .get_attribute('value')
-            else:
-                enrollment_url = \
-                    enrollment_urls[0] \
-                    .get_attribute('value')
 
-        print('Exit: get_enrollment_code')
+        try:
+            self.find(By.CSS_SELECTOR, '.direct-links-only')
+        except Exception:
+            print('Switch board to direct access URLs')
+            direct_enrollment = self.find(By.CSS_SELECTOR, '[role=tab]')
+            if direct_enrollment.get_attribute('aria-selected') != 'true':
+                direct_enrollment.click()
+                self.find(By.CSS_SELECTOR, '.modal-footer button').click()
+
+        enrollment_urls = self.find_all(By.CSS_SELECTOR, '[readonly]')
+        if section_name:
+            enrollment_url = self.find(
+                By.XPATH,
+                '//label[contains(text(), "%s")]/input' % section_name
+            ).get_attribute('value')
+        else:
+            enrollment_urls = self.find_all(By.CSS_SELECTOR, '[readonly]')
+            position = randint(0, 0 if not random else len(enrollment_urls))
+            enrollment_url = enrollment_urls[position] \
+                .get_attribute('value')
+
         return enrollment_url
 
     def get_book_sections(self):
         """Return a list of book sections."""
-        print('Enter: Get Book Sections')
-        print('Retrieve the book section list')
         self.close_beta_windows()
         sleep(1)
         self.goto_calendar()
-        # self.page.wait_for_page_load()
         self.assign.open_assignment_menu(self.driver)
-        print('Use Reading index')
-        # self.wait.until(
-            # expect.element_to_be_clickable(
-                # (By.XPATH, '//a[contains(text(), "Add Reading")]')
         self.find(By.LINK_TEXT, 'Add Reading').click()
-            # )
-        # ).click()
         self.page.wait_for_page_load()
-        # selector = self.find(By.ID, 'reading-select')
-        # Assignment.scroll_to(self.driver, selector)
-        # selector.click()
         self.wait.until(
             expect.element_to_be_clickable(
                 (By.ID, 'reading-select')
             )
         ).click()
         self.page.wait_for_page_load()
-        print('Open the entire book')
-        for chapter in self.find_all(By.CSS_SELECTOR,
-                                     'div.chapter-heading > a'):
+        for chapter in \
+                self.find_all(By.CSS_SELECTOR, 'div.chapter-heading > a'):
             if chapter.get_attribute('aria-expanded') != 'true':
-                Assignment.scroll_to(self.driver, chapter)
+                self.scroll_to(chapter)
                 sleep(0.25)
                 chapter.click()
-        print('Get all sections')
-        sections = self.find_all(
-            By.CSS_SELECTOR, '.section .chapter-section')
-        print('Put the list together')
+        sections = self.find_all(By.CSS_SELECTOR, '.section .chapter-section')
         section_list = []
-        section_string = ''
         for section in sections:
             section_list.append(section.text)
-            section_string += ' %s' % section.text
-        print('Section options: %s' % section_string)
-        print('Return to the dashboard')
+        print('Section options: %s' % str(section_list))
         self.goto_calendar()
-        print('Exit: Get Book Sections')
         return section_list
 
     def get_course_begin_end(self):
@@ -927,42 +815,32 @@ class Teacher(User):
             raise CourseSelectionError('No course selected')
         self.goto_course_settings()
         self.find(By.LINK_TEXT, 'DATES AND TIME').click()
-#         self.find(By.XPATH, '//a[h2[contains(text(), "DATES")]]').click()
         course_time_periods = self.find_all(
-            # By.CLASS_NAME,
-            # 'dates-and-times'
             By.CSS_SELECTOR,
-            # '.dates-and-times'
             '.dates-and-times div'
         )
-        print ("course_time_periods", course_time_periods)
         if len(course_time_periods) < 3:
             raise CourseSelectionError(
                 'Course start and end dates not found',
                 None
             )
-        begin = course_time_periods[1].get_attribute('innerHTML')
-        print('"%s"' % begin)
-        begin = begin.split('>')[3].split('<')[0]
-        end = course_time_periods[1].get_attribute('innerHTML')
-        end = end.split('>')[7].split('<')[0]
-        print(begin + ' - ' + end)
+        dates = course_time_periods[1].get_attribute('innerHTML')
+        begin = dates.split('>')[3].split('<')[0]
+        end = dates.split('>')[7].split('<')[0]
+        print('Course start: "%s"  Course end: "%s"' % (begin, end))
+        self.goto_calendar()
         return (datetime.datetime.strptime(begin, '%m/%d/%Y'),
                 datetime.datetime.strptime(end, '%m/%d/%Y'))
 
     def date_is_valid(self, date):
         """Return boolean if end_date >= date >= start_date."""
-        print(str(date), type(date))
+        print('Date validity check: {0} : {1}'.format(str(date), type(date)))
         if not isinstance(date, datetime.date):
             date = datetime.strptime(date, '%m/%d/%Y')
         date = datetime.datetime(date.year, date.month, date.day)
         start, end = self.get_course_begin_end()
         delta = timedelta(0)
-        print('{0} - {1}\n{2} - {3}\n{4} - {5}'.format(
-            str(date), type(date),
-            str(start), type(start),
-            str(end), type(end)
-        ))
+        print('{0} <= {1} <= {2}'.format(str(start), str(date), str(end)))
         if date - start == delta or end - date == delta:
             return True
         return date > start and date < end
@@ -974,8 +852,10 @@ class Teacher(User):
 
     def get_month_year(self):
         """Break a date string into a month year tuple."""
-        calendar_heading = self.find(By.CSS_SELECTOR,
-                                     '.calendar-header-label')
+        calendar_heading = self.find(
+            By.CSS_SELECTOR,
+            '.calendar-header-label'
+        )
         Assignment.scroll_to(self.driver, calendar_heading)
         calendar_date = calendar_heading.text
         month, year = calendar_date.split(' ')
@@ -987,25 +867,20 @@ class Teacher(User):
         target_date = datetime.datetime.strptime(target, '%m/%d/%Y').date()
         if cal_year == target_date.year and cal_month == target_date.month:
             return
-        while cal_year < target_date.year:
-            self.find(By.CLASS_NAME, 'fa-caret-right').click()
-            sleep(0.2)
-            cal_month, cal_year = self.get_month_year()
-        while cal_month < target_date.month:
-            self.find(By.CLASS_NAME, 'fa-caret-right').click()
-            sleep(0.2)
-            cal_month, cal_year = self.get_month_year()
-        while cal_year > target_date.year:
-            self.find(By.CLASS_NAME, 'fa-caret-left').click()
-            sleep(0.2)
-            cal_month, cal_year = self.get_month_year()
-        while cal_month > target_date.month:
-            self.find(By.CLASS_NAME, 'fa-caret-left').click()
-            sleep(0.2)
-            cal_month, cal_year = self.get_month_year()
+        if cal_year < target_date.year or \
+                (cal_year == target_date.year and
+                 cal_month < target_date.month):
+            arrow = 'fa-caret-right'
+        elif cal_year > target_date.year or \
+                (cal_year == target_date.year and
+                 cal_month > target_date.month):
+            arrow = 'fa-caret-left'
+        self.find(By.CLASS_NAME, arrow).click()
+        sleep(0.2)
+        self.rotate_calendar(target)
 
-    def handle_modals(self):
-        """Click the pi button to make the training wheels reappear and clear them."""
+    def enable_debug_mode(self):
+        """Enable spy mode for training wheels."""
         self.find(By.CLASS_NAME, 'debug-toggle-link').click()
         sleep(1)
         return self
@@ -1036,27 +911,67 @@ class Student(User):
                                       driver_type=driver_type,
                                       **kwargs)
 
-    def goto_menu_item(self, item):
-        """Go to a specific user menu item."""
-        print('Enter: goto_menu_item')
-        if 'courses' in self.driver.current_url:
-            self.open_user_menu()
-            self.wait.until(
-                expect.element_to_be_clickable((By.LINK_TEXT, item))
-            ).click()
-            self.page.wait_for_page_load()
-        print('Exit: goto_menu_item')
-
     def goto_dashboard(self):
         """Go to current work."""
         self.goto_menu_item('Dashboard')
+
+    def pay_for_student(self,
+                        street, city, state, zip_,
+                        card, exp, cvv, billing_zip):
+        """Pay for student access."""
+        if 'free trial for' in self.driver.source:
+
+            self.find(By.CLASS_NAME, 'btn-primary').click()
+            self.wait.until(
+                expect.visibility_of_element_located(
+                    (By.CSS_SELECTOR, 'div.checkout')
+                )
+            )
+            self.find(By.CSS_SELECTOR, '[name=street_address]') \
+                .send_keys(street)
+            self.find(By.CSS_SELECTOR, '[name=city]') \
+                .send_keys(city)
+            select = Select(self.driver.find_element_by_name('state'))
+            if len(state) == 2:
+                select.select_by_value(state.upper())
+            else:
+                select.select_by_visible_text(state.title())
+            self.find(By.CSS_SELECTOR, '[name=zip_code]') \
+                .send_keys(zip_)
+            self.driver.switch_to.frame(
+                self.scroll_to(
+                    self.find(By.ID, 'braintree-hosted-field-number')))
+            self.find(By.ID, 'credit-card-number') \
+                .send_keys(card)
+            self.driver.switch_to.frame(
+                self.find(By.ID, 'braintree-hosted-field-expirationDate'))
+            self.find(By.ID, 'expiration') \
+                .send_keys(exp)
+            self.driver.switch_to.frame(
+                self.find(By.ID, 'braintree-hosted-field-cvv'))
+            self.find(By.ID, 'cvv') \
+                .send_keys(cvv)
+            self.driver.switch_to.frame(
+                self.find(By.ID, 'braintree-hosted-field-postalCode'))
+            self.find(By.ID, 'postal-code') \
+                .send_keys(billing_zip)
+            self.driver.switch_to.default_content()
+            self.find(By.CLASS_NAME, 'purchase').click()
+            self.wait.until(
+                expect.visibility_of_element_located(
+                    (By.CSS_SELECTOR, '.order-complete')
+                )
+            )
+            self.scroll_to(self.find(By.CSS_SELECTOR, 'footer button')).click()
 
     def work_assignment(self):
         """Work an assignment."""
         if '/courses/' not in self.current_url():
             self.find(By.XPATH, '//a[contains(@class,"na")]')
         self.wait.until(
-            expect.element_to_be_clickable((By.LINK_TEXT, 'All Past Work'))
+            expect.element_to_be_clickable(
+                (By.LINK_TEXT, 'All Past Work')
+            )
         )
         raise NotImplementedError(inspect.currentframe().f_code.co_name)
 
@@ -1064,7 +979,9 @@ class Student(User):
         """View work for previous weeks."""
         self.goto_dashboard()
         self.wait.until(
-            expect.element_to_be_clickable((By.LINK_TEXT, 'All Past Work'))
+            expect.element_to_be_clickable(
+                (By.LINK_TEXT, 'All Past Work')
+            )
         ).click()
         self.page.wait_for_page_load()
 
@@ -1084,7 +1001,7 @@ class Student(User):
                     (By.CLASS_NAME, 'is-loading')
                 )
             )
-        except:
+        except Exception:
             pass
         finally:
             self.sleep(2)
@@ -1106,11 +1023,9 @@ class Student(User):
                     '//button[contains(@aria-describedby,' +
                     '"progress-bar-tooltip-")]'
                 )
-                if not isinstance(sections, list):
-                    sections = [sections]
                 for section in sections:
                     options.append(section)
-            except:
+            except Exception:
                 pass
             finally:
                 options[randint(0, len(options) - 1)].click()
@@ -1160,7 +1075,7 @@ class Student(User):
         rand = randint(0, len(answers) - 1)
         answer = chr(ord('a') + rand)
         print('Selecting %s' % answer)
-        Assignment.scroll_to(self.driver, answers[0])
+        self.scroll_to(answers[0])
         if answer == 'a':
             self.driver.execute_script('window.scrollBy(0, -160);')
         elif answer == 'd':
@@ -1335,7 +1250,7 @@ class Webview(Helper):
 class CourseSelectionError(Exception):
     """Course selection failure exception."""
 
-    def __init__(self, msg, err):
+    def __init__(self, msg='', err=None):
         """Exception initializer."""
         self.msg = msg
         self.__traceback__ = err
@@ -1355,7 +1270,7 @@ class CourseSelectionError(Exception):
 class LoginError(Exception):
     """Login error exception."""
 
-    def __init__(self, msg, err):
+    def __init__(self, msg='', err=None):
         """Exception initializer."""
         self.msg = msg
         self.__traceback__ = err
@@ -1375,7 +1290,7 @@ class LoginError(Exception):
 class WebDriverTypeException(WebDriverException):
     """Exception for unknown WebDriver types."""
 
-    def __init__(self, msg, err):
+    def __init__(self, msg='', err=None):
         """Exception initializer."""
         self.msg = msg
         self.__traceback__ = err

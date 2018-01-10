@@ -15,7 +15,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as expect
 
 
-__version__ = '0.0.0'
+__version__ = '0.0.1'
+DRIVER = os.getenv('DRIVER', 'chrome')
 
 
 class TestStaxingAssignment(unittest.TestCase):
@@ -26,6 +27,9 @@ class TestStaxingAssignment(unittest.TestCase):
         self.assignment = Assignment()
         option_set = options.Options()
         option_set.add_argument("disable-infobars")
+        option_set.add_argument('disable-geolocation')
+        if 'headless' in DRIVER:
+            option_set.add_argument('headless')
         option_set.add_experimental_option(
             'prefs', {
                 'credentials_enable_service': False,
@@ -34,7 +38,8 @@ class TestStaxingAssignment(unittest.TestCase):
                 }
             }
         )
-        self.driver = webdriver.Chrome(chrome_options=option_set)
+        if 'chrome' in DRIVER or 'headless' in DRIVER:
+            self.driver = webdriver.Chrome(chrome_options=option_set)
         self.wait = WebDriverWait(self.driver, 15)
         self.driver.implicitly_wait(15)
 
@@ -42,11 +47,11 @@ class TestStaxingAssignment(unittest.TestCase):
         """Test destructor."""
         try:
             self.assignment.__del__()
-        except:
+        except Exception:
             pass
         try:
             self.driver.__del__()
-        except:
+        except Exception:
             pass
 
     def test_assignment_class_method_rword(self):
@@ -104,15 +109,15 @@ class TestStaxingAssignment(unittest.TestCase):
         try:
             self.wait.until(
                 expect.element_to_be_clickable(
-                    (By.XPATH, '//button[contains(text(), "For extra credit")]')
+                    (By.XPATH, '//button[contains(text(),"For extra credit")]')
                 )
             ).click()
             self.find(By.CLASS_NAME, 'btn-primary').click()
-        except:
+        except Exception:
             pass
         menu = self.driver.find_element(By.CLASS_NAME, 'sidebar-toggle')
-        # menu = self.driver.find_element(By.CSS_SELECTOR, '.sidebar-toggle')
-        if 'open' in menu.get_attribute('class'):
+        Assignment.scroll_to(self.driver, menu)
+        if 'open' not in menu.get_attribute('class'):
             time.sleep(2)
             menu.click()
         self.assignment.open_assignment_menu(self.driver)

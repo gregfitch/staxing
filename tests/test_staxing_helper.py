@@ -20,17 +20,18 @@ __version__ = '0.0.10'
 TESTS = os.getenv(
     'CASELIST',
     str([
-        101, 102, 103, 104, 105, 106, 107,
+        101, 102, 103, 104, 105, 106,
         201, 202, 203, 204, 205, 206, 207, 208,
-        301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 315, 316,
+        301, 302, 303, 304, 305, 307, 310, 311, 315, 316,
         # 401,
-        # 501,
+        501,
         # 601,
-        # 701,
-        # 801,
+        701,
+        801,
     ])
 )
 LOGGER.setLevel(logging.WARNING)
+DRIVER = os.getenv('DRIVER', 'chrome')
 
 
 class TestStaxingHelper(unittest.TestCase):
@@ -38,13 +39,13 @@ class TestStaxingHelper(unittest.TestCase):
 
     def setUp(self):
         """Pretest settings."""
-        self.helper = Helper()
+        self.helper = Helper(driver_type=DRIVER)
 
     def tearDown(self):
         """Test destructor."""
         try:
             self.helper.delete()
-        except:
+        except Exception:
             pass
 
     @pytest.mark.skipif(str(101) not in TESTS, reason='Excluded')
@@ -56,6 +57,8 @@ class TestStaxingHelper(unittest.TestCase):
             'Window not resized: %s' % str(new_size)
         self.helper.set_window_size(200, 200)
         new_size = {'width': 200, 'height': 200}
+        if 'headless' in self.helper.driver_type:
+            return
         self.helper.set_window_size(maximize=True)
         assert(self.helper.driver.get_window_size() != new_size), \
             'Window not maximized: %s' % str(new_size)
@@ -80,31 +83,22 @@ class TestStaxingHelper(unittest.TestCase):
         in_12_formatted = in_12_formatted.strftime('%Y%m%d')
 
         assert(self.helper.date_string() == today.strftime('%m/%d/%Y')), \
-            'Default failed: %s != %s' % (
-                self.helper.date_string(),
-                today
-        )
+            'Default failed: %s != %s' % (self.helper.date_string(), today)
         assert(self.helper.date_string(5) == str(in_5)), \
-            'Set +5 failed: %s != %s' % (
-                self.helper.date_string(5),
-                in_5
-        )
+            'Set +5 failed: %s != %s' % (self.helper.date_string(5), in_5)
+
         assert(self.helper.date_string(str_format='%Y-%m-%d') == formatted), \
-            'Formatted failed: %s != %s' % (
-                self.helper.date_string(str_format='%Y-%m-%d'),
-                formatted
-            )
+            'Formatted failed: %s != %s' % \
+            (self.helper.date_string(str_format='%Y-%m-%d'), formatted)
         assert(self.helper.date_string(12, '%Y%m%d') == in_12_formatted), \
-            'Set +12 formatted failed: %s != %s' % (
-                self.helper.date_string(12, '%Y%m%d'),
-                in_12_formatted
-            )
+            'Set +12 formatted failed: %s != %s' % \
+            (self.helper.date_string(12, '%Y%m%d'), in_12_formatted)
 
     @pytest.mark.skipif(str(104) not in TESTS, reason='Excluded')
     def test_helper_get_webpage_104(self):
         """Get a webpage."""
         self.helper.get('https://www.google.com/')
-        assert('Google' in self.helper.driver.title)
+        assert('Google' in self.helper.driver.title), 'Page not loaded'
 
     @pytest.mark.skipif(str(105) not in TESTS, reason='Excluded')
     def test_helper_get_window_size_105(self):
@@ -148,19 +142,19 @@ class TestStaxingUser(unittest.TestCase):
 
     def setUp(self):
         """Pretest settings."""
-        self.user = User('', '', '')
+        self.user = User('', '', '', driver_type=DRIVER)
         print(self.user.driver.get_window_size())
         self.user.set_window_size(height=700, width=1200)
         print(self.user.driver.get_window_size())
         self.server = ''.join(('https://', os.getenv('SERVER_URL')))
-        self.login = os.getenv('STUDENT_USER_MULTI')
-        self.password = os.getenv('STUDENT_PASSWORD')
+        self.login = os.getenv('TEACHER_USER_MULTI')
+        self.password = os.getenv('TEACHER_PASSWORD')
 
     def tearDown(self):
         """Test destructor."""
         try:
             self.user.delete()
-        except:
+        except Exception:
             pass
 
     @pytest.mark.skipif(str(201) not in TESTS, reason='Excluded')
@@ -168,8 +162,8 @@ class TestStaxingUser(unittest.TestCase):
         """Log into Tutor."""
         self.user.login(self.server, self.login, self.password)
         was_successful = 'course' in self.user.current_url() or \
-            'dashboard' in self.user.current_url() or \
-            'calendar' in self.user.current_url()
+                         'dashboard' in self.user.current_url() or \
+                         'calendar' in self.user.current_url()
         assert(was_successful), 'Failed to log into %s' % self.server
 
     @pytest.mark.skipif(str(202) not in TESTS, reason='Excluded')
@@ -177,9 +171,8 @@ class TestStaxingUser(unittest.TestCase):
         """Log out of Tutor"""
         self.user.login(self.server, self.login, self.password)
         self.user.logout()
-        was_successful = \
-            'http://cc.openstax.org/' in self.user.current_url() or \
-            'https://tutor-qa.openstax.org/?' in self.user.current_url()
+        was_successful = 'tutor' in self.user.current_url() and \
+                         '.openstax.org' in self.user.current_url()
         assert(was_successful), 'Failed to log out of %s' % self.server
 
     @pytest.mark.skipif(str(203) not in TESTS, reason='Excluded')
@@ -208,20 +201,18 @@ class TestStaxingUser(unittest.TestCase):
         course_number = 0 if len(courses) <= 1 \
             else randint(1, len(courses)) - 1
         title = courses[course_number].get_attribute('data-title')
-        Assignment.scroll_to(self.user.driver, courses[course_number])
+        self.user.scroll_to(courses[course_number])
         self.user.select_course(title=title)
-        was_successful = 'course' in self.user.current_url() or \
-            'list' in self.user.current_url() or \
-            'calendar' in self.user.current_url() or \
-            'contents' in self.user.current_url()
+        position = self.user.current_url()
+        was_successful = 'course' in position or \
+                         'list' in position or \
+                         'calendar' in position or \
+                         'contents' in position
         assert(was_successful), \
-            'Failed to select course in URL: %s' % self.user.current_url()
-        if 'contents' in self.user.current_url():
+            'Failed to select course in URL: %s' % position
+        if 'contents' in position:
             return
-        course_name = self.user.find(
-            By.CLASS_NAME,
-            'book-title-text'
-        ).text
+        course_name = self.user.find(By.CLASS_NAME, 'title').text
         assert(title == course_name), 'Failed to select course "%s"' % title
 
     @pytest.mark.skipif(str(206) not in TESTS, reason='Excluded')
@@ -232,42 +223,42 @@ class TestStaxingUser(unittest.TestCase):
         course_number = 0 if len(courses) == 1 \
             else randint(1, len(courses)) - 1
         assert(course_number >= 0), 'No courses found.'
+
         appearance = courses[course_number].get_attribute('data-appearance')
         appearance_courses = self.user.find_all(
-                By.XPATH,
-                '//div[contains(@data-appearance,"%s")]' % appearance
-            )
+            By.XPATH,
+            '//div[contains(@data-appearance,"%s")]' % appearance
+        )
         title = ''
         if isinstance(appearance_courses, list):
             for course in appearance_courses:
                 title = title.join((' ', course.text))
         else:
             title = courses[course_number].text
-        Assignment.scroll_to(self.user.driver, courses[course_number])
+        self.user.scroll_to(courses[course_number])
         self.user.select_course(appearance=appearance)
-        was_successful = 'course' in self.user.current_url() or \
-            'list' in self.user.current_url() or \
-            'calendar' in self.user.current_url() or \
-            'contents' in self.user.current_url()
+        position = self.user.current_url()
+        was_successful = 'course' in position or \
+                         'list' in position or \
+                         'calendar' in position or \
+                         'contents' in position
         assert(was_successful), \
-            'Failed to select course in URL: %s' % self.user.current_url()
-        if 'contents' in self.user.current_url():
+            'Failed to select course in URL: %s' % position
+        if 'contents' in position:
             return
-        course_name = self.user.find(
-            By.CLASS_NAME,
-            'book-title-text'
-        ).text
+
+        course_name = self.user.find(By.CLASS_NAME, 'title').text
         assert(course_name in title.replace('\n', ' ')), \
             'Failed to select course "%s"' % course_name
 
     @pytest.mark.skipif(str(207) not in TESTS, reason='Excluded')
     def test_user_go_to_course_list_207(self):
-        """No test placeholder."""
+        """Go to the course list."""
         self.user.login(self.server, self.login, self.password)
         courses = self.user.get_course_list()
         course_number = 0 if len(courses) <= 1 \
             else randint(1, len(courses)) - 1
-        Assignment.scroll_to(self.user.driver, courses[course_number])
+        self.user.scroll_to(courses[course_number])
         self.user.select_course(
             title=courses[course_number].get_attribute('data-title'))
         url = self.user.current_url()
@@ -286,7 +277,7 @@ class TestStaxingUser(unittest.TestCase):
 
     @pytest.mark.skipif(str(208) not in TESTS, reason='Excluded')
     def test_user_open_the_reference_book_208(self):
-        """No test placeholder."""
+        """Open the reference view of the textbook."""
         self.user.login(self.server, self.login, self.password)
         main_window = self.user.driver.current_window_handle
         courses = self.user.get_course_list()
@@ -322,31 +313,31 @@ class TestStaxingUser(unittest.TestCase):
 
 
 class TestStaxingTutorTeacher(unittest.TestCase):
-    """Staxing case tests."""
+    """Staxing case tests for Teacher."""
 
     book_sections = None
     class_start_end_dates = None
 
     def setUp(self):
         """Pretest settings."""
-        self.teacher = Teacher(use_env_vars=True, driver='chrome')
+        self.teacher = Teacher(use_env_vars=True, driver_type=DRIVER)
         self.teacher.username = os.getenv('TEACHER_USER_MULTI',
                                           self.teacher.username)
         self.teacher.set_window_size(height=700, width=1200)
         self.teacher.login()
         courses = self.teacher.get_course_list()
+        if len(courses) < 1:
+            raise ValueError('No course available for selection')
         course = courses[randint(0, len(courses) - 1)]
 
-        self.teacher.handle_modals()
         self.teacher.select_course(title=course.get_attribute('data-title'))
 
         if not self.__class__.book_sections:
             self.__class__.book_sections = self.teacher.get_book_sections()
-            self.teacher.goto_calendar()
         if not self.__class__.class_start_end_dates:
             self.__class__.class_start_end_dates = \
                 self.teacher.get_course_begin_end()
-            self.teacher.goto_calendar()
+
         self.book_sections = self.__class__.book_sections
         self.start_end = self.__class__.class_start_end_dates
 
@@ -354,14 +345,17 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         """Test destructor."""
         try:
             self.teacher.delete()
-        except:
+        except Exception:
             pass
 
     @pytest.mark.skipif(str(301) not in TESTS, reason='Excluded')
     def test_add_reading_assignment_individual_publish_301(self):
-        """Build reading assignments."""
-        # Reading, individual periods, publish
+        """Build reading assignments.
 
+        Type:     reading
+        Sections: individualized
+        Action:   publish
+        """
         assignment_title = 'Reading-%s' % Assignment.rword(5)
 
         left_delta = randint(0, 20)
@@ -369,46 +363,65 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         start_date_1 = self.teacher.date_string(day_delta=left_delta)
         start_date_2 = self.teacher.date_string(day_delta=left_delta + 1)
         start_date_3 = self.teacher.date_string(day_delta=left_delta + 2)
+        start_date_4 = self.teacher.date_string(day_delta=left_delta + 3)
         if not self.teacher.date_is_valid(left):
-            start_date_1 = (self.class_start_end_dates[0]).strftime('%m/%d/%Y')
-            start_date_2 = (self.class_start_end_dates[0] \
-                + datetime.timedelta(1)).strftime('%m/%d/%Y')
-            start_date_3 = (self.class_start_end_dates[0] \
-                + datetime.timedelta(2)).strftime('%m/%d/%Y')
+            start_date_1 = (self.class_start_end_dates[0]) \
+                .strftime('%m/%d/%Y')
+            start_date_2 = \
+                (self.class_start_end_dates[0] + datetime.timedelta(1)) \
+                .strftime('%m/%d/%Y')
+            start_date_3 = \
+                (self.class_start_end_dates[0] + datetime.timedelta(2)) \
+                .strftime('%m/%d/%Y')
+            start_date_4 = \
+                (self.class_start_end_dates[0] + datetime.timedelta(3)) \
+                .strftime('%m/%d/%Y')
         right_delta = left_delta + randint(1, 10)
         right = datetime.date.today() + datetime.timedelta(right_delta)
         end_date_1 = self.teacher.date_string(day_delta=right_delta)
         end_date_2 = self.teacher.date_string(day_delta=right_delta + 1)
         end_date_3 = self.teacher.date_string(day_delta=right_delta + 2)
+        end_date_4 = self.teacher.date_string(day_delta=right_delta + 3)
         if not self.teacher.date_is_valid(right):
-            end_date_1 = (self.class_start_end_dates[1] \
-                - datetime.timedelta(2)).strftime('%m/%d/%Y')
-            end_date_2 = (self.class_start_end_dates[1] \
-                 - datetime.timedelta(1)).strftime('%m/%d/%Y')
-            end_date_3 = (self.class_start_end_dates[1]).strftime('%m/%d/%Y')
+            end_date_1 = \
+                (self.class_start_end_dates[1] - datetime.timedelta(3)) \
+                .strftime('%m/%d/%Y')
+            end_date_2 = \
+                (self.class_start_end_dates[1] - datetime.timedelta(2)) \
+                .strftime('%m/%d/%Y')
+            end_date_3 = \
+                (self.class_start_end_dates[1] - datetime.timedelta(1)) \
+                .strftime('%m/%d/%Y')
+            end_date_4 = \
+                (self.class_start_end_dates[1]) \
+                .strftime('%m/%d/%Y')
         print('Left: %s  Right: %s' % (left, right))
         start_time_2 = '6:30 am'
         end_time_2 = '11:59 pm'
-        # start_date_3 = (left + datetime.timedelta(2)). \
-        #     strftime('%m/%d/%Y')
-        # end_date_3 = (right + datetime.timedelta(2)). \
-        #     strftime('%m/%d/%Y')
-        self.book_sections = self.teacher.get_book_sections()
         reading_start = randint(0, (len(self.book_sections) - 1))
         reading_end = reading_start + randint(1, 5)
         reading_list = self.book_sections[reading_start:reading_end]
+        sections = self.teacher.get_course_sections()
+        assign_sections = {}
+        if len(sections) >= 1 and sections[0]:
+            assign_sections[sections[0]] = (start_date_1, end_date_1)
+        if len(sections) >= 2 and sections[1]:
+            assign_sections[sections[1]] = ((start_date_2, start_time_2),
+                                            (end_date_2, end_time_2))
+        if len(sections) >= 3 and sections[2]:
+            assign_sections[sections[2]] = (start_date_3, end_date_3)
+        if len(sections) >= 4 and sections[3]:
+            assign_sections[sections[3]] = (start_date_4, end_date_4)
+        for number, section in enumerate(sections):
+            assign_sections[section] = ((start_date_1, start_time_2),
+                                        (end_date_1, end_time_2))
         self.teacher.add_assignment(
             assignment='reading',
             args={
                 'title': assignment_title,
                 'description': 'Staxing test reading - individual periods - ' +
                                'publish',
-                'periods': {
-                    '1st': (start_date_1, end_date_1),
-                    '2nd': ((start_date_2, start_time_2),
-                            (end_date_2, end_time_2)),
-                    '3rd': (start_date_3, end_date_3),
-                },
+                'periods': assign_sections,
                 'reading_list': reading_list,
                 'status': 'publish',
                 'break_point': None,
@@ -416,6 +429,7 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         )
         assert('course' in self.teacher.current_url()), \
             'Not at dashboard'
+        print(self.teacher.current_url())
         self.teacher.rotate_calendar(end_date_1)
         reading = self.teacher.find(
             By.XPATH,
@@ -423,7 +437,7 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         )
         time.sleep(5.0)
         assert(reading), '%s not publishing on %s' % (assignment_title,
-                                                      end_date_3)
+                                                      end_date_1)
 
     @pytest.mark.skipif(str(302) not in TESTS, reason='Excluded')
     def test_add_reading_assignment_all_publish_302(self):
@@ -433,22 +447,26 @@ class TestStaxingTutorTeacher(unittest.TestCase):
 
         left_delta = randint(0, 20)
         left = datetime.date.today() + datetime.timedelta(left_delta)
-        start_date_1 = self.teacher.date_string(day_delta=left_delta)
+        # start_date_1 = self.teacher.date_string(day_delta=left_delta)
         start_date_2 = self.teacher.date_string(day_delta=left_delta + 1)
         if not self.teacher.date_is_valid(left):
-            start_date_1 = (self.class_start_end_dates[0]).strftime('%m/%d/%Y')
-            start_date_2 = (self.class_start_end_dates[0] \
-                + datetime.timedelta(1)).strftime('%m/%d/%Y')
-
+            # start_date_1 = \
+            #     (self.class_start_end_dates[0]) \
+            #     .strftime('%m/%d/%Y')
+            start_date_2 = \
+                (self.class_start_end_dates[0] + datetime.timedelta(1)) \
+                .strftime('%m/%d/%Y')
         right_delta = left_delta + randint(1, 10)
         right = datetime.date.today() + datetime.timedelta(right_delta)
         end_date_1 = self.teacher.date_string(day_delta=right_delta)
         end_date_2 = self.teacher.date_string(day_delta=right_delta + 1)
         if not self.teacher.date_is_valid(right):
-            end_date_1 = (self.class_start_end_dates[1] 
-                - datetime.timedelta(2)).strftime('%m/%d/%Y')
-            end_date_2 = (self.class_start_end_dates[1] 
-                - datetime.timedelta(1)).strftime('%m/%d/%Y')
+            end_date_1 = \
+                (self.class_start_end_dates[1] - datetime.timedelta(2)) \
+                .strftime('%m/%d/%Y')
+            end_date_2 = \
+                (self.class_start_end_dates[1] - datetime.timedelta(1)) \
+                .strftime('%m/%d/%Y')
         print('Left: %s  Right: %s' % (left, right))
         # self.book_sections = self.teacher.get_book_sections()
         reading_start = randint(0, (len(self.book_sections) - 1))
@@ -460,7 +478,7 @@ class TestStaxingTutorTeacher(unittest.TestCase):
                 'title': assignment_title,
                 'description': 'Staxing test reading - all periods - publish',
                 'periods': {
-                    '1st': (start_date_1, end_date_1),
+                    # '1st': (start_date_1, end_date_1),
                     'all': (start_date_2, end_date_2),
                 },
                 'reading_list': reading_list,
@@ -487,43 +505,51 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         assignment_title = 'Reading-%s' % Assignment.rword(5)
         left_delta = randint(0, 20)
         left = datetime.date.today() + datetime.timedelta(left_delta)
-        start_date_1 = self.teacher.date_string(day_delta=left_delta)
+        '''start_date_1 = self.teacher.date_string(day_delta=left_delta)
         start_date_2 = self.teacher.date_string(day_delta=left_delta + 1)
         start_date_3 = self.teacher.date_string(day_delta=left_delta + 2)
         if not self.teacher.date_is_valid(left):
-            start_date_1 = (self.class_start_end_dates[0]).strftime('%m/%d/%Y')
-            start_date_2 = (self.class_start_end_dates[0] \
-                + datetime.timedelta(1)).strftime('%m/%d/%Y')
-            start_date_3 = (self.class_start_end_dates[0] \
-                + datetime.timedelta(2)).strftime('%m/%d/%Y')
-
+            start_date_1 = \
+                (self.class_start_end_dates[0]).strftime('%m/%d/%Y')
+            start_date_2 = \
+                (self.class_start_end_dates[0] + datetime.timedelta(1)) \
+                .strftime('%m/%d/%Y')
+            start_date_3 = \
+                (self.class_start_end_dates[0] + datetime.timedelta(2)) \
+                .strftime('%m/%d/%Y')'''
         right_delta = left_delta + randint(1, 10)
         right = datetime.date.today() + datetime.timedelta(right_delta)
         end_date_1 = self.teacher.date_string(day_delta=right_delta)
-        end_date_2 = self.teacher.date_string(day_delta=right_delta + 1)
+        # end_date_2 = self.teacher.date_string(day_delta=right_delta + 1)
         end_date_3 = self.teacher.date_string(day_delta=right_delta + 2)
         if not self.teacher.date_is_valid(right):
-            end_date_1 = (self.class_start_end_dates[1] 
-                - datetime.timedelta(2)).strftime('%m/%d/%Y')
-            end_date_2 = (self.class_start_end_dates[1] 
-                - datetime.timedelta(1)).strftime('%m/%d/%Y')
-            end_date_3 = (self.class_start_end_dates[1]).strftime('%m/%d/%Y')
+            end_date_1 = \
+                (self.class_start_end_dates[1] - datetime.timedelta(2)) \
+                .strftime('%m/%d/%Y')
+            # end_date_2 = \
+            #     (self.class_start_end_dates[1] - datetime.timedelta(1)) \
+            #     .strftime('%m/%d/%Y')
+            end_date_3 = \
+                (self.class_start_end_dates[1]) \
+                .strftime('%m/%d/%Y')
         print('Left: %s  Right: %s' % (left, right))
         # self.book_sections = self.teacher.get_book_sections()
         reading_start = randint(0, (len(self.book_sections) - 1))
         reading_end = reading_start + randint(1, 5)
         reading_list = self.book_sections[reading_start:reading_end]
+        sections = self.teacher.get_course_sections()
+        periods = {}
+        for index, section in enumerate(sections):
+            periods[section] = \
+                (self.teacher.date_string(day_delta=left_delta + index),
+                 self.teacher.date_string(day_delta=right_delta + index))
         self.teacher.add_assignment(
             assignment='reading',
             args={
                 'title': assignment_title,
                 'description': 'Staxing test reading - individual periods ' +
                                '- draft',
-                'periods': {
-                    '1st': (start_date_1, end_date_1),
-                    '2nd': (start_date_2, end_date_2),
-                    '3rd': (start_date_3, end_date_3),
-                },
+                'periods': periods,
                 'reading_list': reading_list,
                 'status': 'draft',
                 'break_point': None,
@@ -549,14 +575,17 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         left = datetime.date.today() + datetime.timedelta(left_delta)
         start_date_1 = self.teacher.date_string(day_delta=left_delta)
         if not self.teacher.date_is_valid(left):
-            start_date_1 = (self.class_start_end_dates[0]).strftime('%m/%d/%Y')
+            start_date_1 = \
+                (self.class_start_end_dates[0]) \
+                .strftime('%m/%d/%Y')
 
         right_delta = left_delta + randint(1, 10)
         right = datetime.date.today() + datetime.timedelta(right_delta)
         end_date_1 = self.teacher.date_string(day_delta=right_delta)
         if not self.teacher.date_is_valid(right):
-            end_date_1 = (self.class_start_end_dates[1] 
-                - datetime.timedelta(2)).strftime('%m/%d/%Y')
+            end_date_1 = \
+                (self.class_start_end_dates[1] - datetime.timedelta(2)) \
+                .strftime('%m/%d/%Y')
         print('Left: %s  Right: %s' % (left, right))
         # self.book_sections = self.teacher.get_book_sections()
         reading_start = randint(0, (len(self.book_sections) - 1))
@@ -595,26 +624,31 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         left = datetime.date.today() + datetime.timedelta(left_delta)
         start_date_1 = self.teacher.date_string(day_delta=left_delta)
         if not self.teacher.date_is_valid(left):
-            start_date_1 = (self.class_start_end_dates[0]).strftime('%m/%d/%Y')
-
+            start_date_1 = \
+                (self.class_start_end_dates[0]) \
+                .strftime('%m/%d/%Y')
         right_delta = left_delta + randint(1, 10)
         right = datetime.date.today() + datetime.timedelta(right_delta)
         end_date_1 = self.teacher.date_string(day_delta=right_delta)
         if not self.teacher.date_is_valid(right):
-            end_date_1 = (self.class_start_end_dates[1] 
-                - datetime.timedelta(2)).strftime('%m/%d/%Y')
+            end_date_1 = \
+                (self.class_start_end_dates[1] - datetime.timedelta(2)) \
+                .strftime('%m/%d/%Y')
         print('Left: %s  Right: %s' % (left, right))
         # self.book_sections = self.teacher.get_book_sections()
         reading_start = randint(0, (len(self.book_sections) - 1))
         reading_end = reading_start + randint(1, 5)
         reading_list = self.book_sections[reading_start:reading_end]
+        sections = self.teacher.get_course_sections()
+        if not isinstance(sections, list):
+            sections = [sections]
         self.teacher.add_assignment(
             assignment='reading',
             args={
                 'title': assignment_title,
                 'description': 'Staxing test reading - cancel',
                 'periods': {
-                    '1st': (start_date_1, end_date_1),
+                    sections[0]: (start_date_1, end_date_1),
                 },
                 'reading_list': reading_list,
                 'status': 'cancel',
@@ -644,14 +678,16 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         left = datetime.date.today() + datetime.timedelta(left_delta)
         start_date = self.teacher.date_string(day_delta=left_delta)
         if not self.teacher.date_is_valid(left):
-            start_date = (self.class_start_end_dates[0]).strftime('%m/%d/%Y')
-
+            start_date = \
+                (self.class_start_end_dates[0]) \
+                .strftime('%m/%d/%Y')
         right_delta = left_delta + randint(1, 10)
         right = datetime.date.today() + datetime.timedelta(right_delta)
         end_date = self.teacher.date_string(day_delta=right_delta)
         if not self.teacher.date_is_valid(right):
-            end_date = (self.class_start_end_dates[1] 
-                - datetime.timedelta(2)).strftime('%m/%d/%Y')
+            end_date = \
+                (self.class_start_end_dates[1] - datetime.timedelta(2)) \
+                .strftime('%m/%d/%Y')
         self.teacher.add_assignment(
             assignment='reading',
             args={
@@ -673,29 +709,9 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         )
         print('Waiting for publish')
 
-        # assert('course' in self.teacher.current_url()), \
-        #     'Not at dashboard'
-        # self.teacher.rotate_calendar(end_date_1)
-        # reading = self.teacher.find(
-        #     By.XPATH,
-        #     '//label[text()="%s"]' % assignment_title
-        # )
-        # time.sleep(5.0)
-        # assert(reading), '%s not publishing on %s' % (assignment_title,
-        #                                               end_date_3)
-
         time.sleep(5.0)
         assert(reading), \
             '%s not publishing on %s' % (assignment_title, end_date)
-        # new_date = start_date.split('/')
-        # new_date = '%s/%s' % (int(new_date[0]), int(new_date[1]))
-        # self.teacher.wait.until(
-        #     expect.presence_of_element_located(
-        #         (By.XPATH,
-        #          '//label[@data-title="%s" and @data-opens-at="%s"]' %
-        #          (assignment_title, new_date))
-        #     )
-        # )
         self.teacher.delete_assignment(
             assignment='reading',
             args={
@@ -713,7 +729,7 @@ class TestStaxingTutorTeacher(unittest.TestCase):
                 '//label[text()="%s"]' % assignment_title
             )
             assert(False), '%s still exists' % assignment_title
-        except:
+        except Exception:
             pass
 
     @pytest.mark.skipif(str(308) not in TESTS, reason='Excluded')
@@ -769,7 +785,7 @@ class TestStaxingTutorTeacher(unittest.TestCase):
 
     @pytest.mark.skipif(str(316) not in TESTS, reason='Excluded')
     def test_teacher_handle_modals_316(self):
-        self.teacher.handle_modals()
+        self.teacher.enable_debug_mode()
         self.teacher.close_beta_windows()
         time.sleep(3)
         assert("modal closed")
@@ -801,14 +817,14 @@ class TestStaxingTutorStudent(unittest.TestCase):
 
     def setUp(self):
         """Pretest settings."""
-        self.student = Student(use_env_vars=True)
+        self.student = Student(use_env_vars=True, driver_type=DRIVER)
         self.student.set_window_size(height=700, width=1200)
 
     def tearDown(self):
         """Test destructor."""
         try:
             self.student.delete()
-        except:
+        except Exception:
             pass
 
     # @pytest.mark.skipif(str(501) not in TESTS, reason='Excluded')
@@ -843,14 +859,14 @@ class TestStaxingAdmin(unittest.TestCase):
 
     def setUp(self):
         """Pretest settings."""
-        self.admin = Admin(use_env_vars=True)
+        self.admin = Admin(use_env_vars=True, driver_type=DRIVER)
         self.admin.set_window_size(height=700, width=1200)
 
     def tearDown(self):
         """Test destructor."""
         try:
             self.admin.delete()
-        except:
+        except Exception:
             pass
 
     # @pytest.mark.skipif(str(701) not in TESTS, reason='Excluded')
@@ -864,14 +880,14 @@ class TestStaxingContentQA(unittest.TestCase):
 
     def setUp(self):
         """Pretest settings."""
-        self.content = ContentQA(use_env_vars=True)
+        self.content = ContentQA(use_env_vars=True, driver_type=DRIVER)
         self.content.set_window_size(height=700, width=1200)
 
     def tearDown(self):
         """Test destructor."""
         try:
             self.content.delete()
-        except:
+        except Exception:
             pass
 
     # @pytest.mark.skipif(str(801) not in TESTS, reason='Excluded')

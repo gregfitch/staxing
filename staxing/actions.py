@@ -21,5 +21,6 @@ class Actions(ActionChains):
         self._actions.append(lambda: sleep(seconds))
         return self
 
+
 if __name__ == '__main__':  # pragma: no cover
     initialization = Actions

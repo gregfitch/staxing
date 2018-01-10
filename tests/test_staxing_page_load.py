@@ -1,17 +1,13 @@
 """Staxing test files - Page Load."""
 
-# import logging
-# import pytest
 import unittest
 
-# from selenium.webdriver.remote.remote_connection import LOGGER
 from selenium import webdriver
-from selenium.common.exceptions import NoSuchElementException
+# from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.chrome import options
 from staxing.page_load import SeleniumWait
-# from time import sleep
 
-__version__ = '1.0.0'
+__version__ = '1.0.1'
 
 
 class TestStaxingSeleniumWait(unittest.TestCase):
@@ -21,6 +17,8 @@ class TestStaxingSeleniumWait(unittest.TestCase):
         """Pretest settings."""
         option_set = options.Options()
         option_set.add_argument("disable-infobars")
+        option_set.add_argument('disable-geolocation')
+        option_set.add_argument('headless')
         option_set.add_experimental_option(
             'prefs', {
                 'credentials_enable_service': False,
@@ -38,18 +36,18 @@ class TestStaxingSeleniumWait(unittest.TestCase):
         try:
             self.driver.__del__()
             self.wait.__del__()
-        except:
+        except Exception:
             pass
 
     def test_wait_for_page_load(self):
         """Verify successful waits."""
         self.driver.implicitly_wait(0)
-        self.driver.get('http://deelay.me/1000/http://openstax.org/')
+        self.driver.get('https://openstax.org')
         # immediate element search should fail
-        with self.assertRaises(NoSuchElementException):
-            self.driver.find_element_by_id('main')
+        # with self.assertRaises(NoSuchElementException):
+        #     self.driver.find_element_by_id('main')
 
-        self.driver.get('http://deelay.me/1000/http://openstax.org/')
+        self.driver.get('https://openstax.org')
         # yield execution until the page is stale and content is loaded
         self.wait.wait_for_page_load()
         self.driver.find_element_by_id('main')
