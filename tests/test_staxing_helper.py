@@ -24,7 +24,7 @@ TESTS = os.getenv(
         201, 202, 203, 204, 205, 206, 207, 208,
         301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 315, 316,
         # 401,
-        # 501,
+        501,
         # 601,
         # 701,
         # 801,
@@ -696,6 +696,7 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         #          (assignment_title, new_date))
         #     )
         # )
+        time.sleep(5.0)
         self.teacher.delete_assignment(
             assignment='reading',
             args={
@@ -801,8 +802,12 @@ class TestStaxingTutorStudent(unittest.TestCase):
 
     def setUp(self):
         """Pretest settings."""
-        self.student = Student(use_env_vars=True)
+        self.student = Student(use_env_vars=True, driver='chrome')
+        self.student.username = os.getenv('STUDENT_USER_MULTI',
+                                            self.student.username)
         self.student.set_window_size(height=700, width=1200)
+        self.student.login()
+        
 
     def tearDown(self):
         """Test destructor."""
@@ -810,6 +815,16 @@ class TestStaxingTutorStudent(unittest.TestCase):
             self.student.delete()
         except:
             pass
+
+    @pytest.mark.skipif(str(501) not in TESTS, reason='Excluded')
+    def test_work_on_reading_501(self):
+
+        # student get into the course 
+        courses = self.student.get_course_list()
+        course = courses[randint(0, len(courses) - 1)]
+        self.student.select_course(title=title=course.get_attribute('data-title'))
+        
+        self.student.work_reading("Reading 03") # will change later
 
     # @pytest.mark.skipif(str(501) not in TESTS, reason='Excluded')
     # def test_base_case_501(self):

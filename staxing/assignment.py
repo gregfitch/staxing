@@ -12,6 +12,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support import expected_conditions as expect
 from selenium.webdriver.support.ui import WebDriverWait
 
+
 __version__ = '0.0.36'
 
 try:
@@ -564,6 +565,13 @@ class Assignment(object):
             return
         driver.find_element(By.XPATH,
                             '//button[text()="Add Readings"]').click()
+        # code to remove train wheel
+        time.sleep(2)
+        try: 
+            driver.find_element(By.CSS_SELECTOR, '.joyride-tooltip__footer button').click()
+            driver.find_element(By.XPATH, '//button[text()="Got It"]').click()
+        except:
+            pass
         wait.until(
             expect.visibility_of_element_located(
                 (By.XPATH, '//button[contains(@class,"-publish")]')
@@ -954,8 +962,10 @@ class Assignment(object):
         wait.until(
             expect.visibility_of_element_located(
                 (By.XPATH, '//button[contains(@class, "delete-link")]')
+                # (By.XPATH, '//button[text()="Edit Assignment"]').click()
             )
         ).click()
+
         wait.until(
             expect.visibility_of_element_located(
                 (By.XPATH, '//div[@class="controls"]/button[text()="Yes"]')

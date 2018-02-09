@@ -300,6 +300,35 @@ class Helper(object):
         parse = ParseResult(*parse)
         return parse.geturl()
 
+    def is_modal_present(self, by, value):
+        try:
+            self.find(By.CLASS_NAME, 'joyride-tooltip__button--primary')
+
+        except:
+            return False
+        return True
+
+    def close_beta_windows(self):
+        """Close the beta windows if it shows."""
+        store_wait = self.wait_time
+        self.change_wait_time(1)
+        while self.is_modal_present(By.CLASS_NAME, 'joyride-tooltip__button--primary'):
+            self.find(By.CLASS_NAME, 'joyride-tooltip__button--primary').click()
+        try:
+            self.find(By.XPATH, '//button[span[text()="Submit"]]')
+        except:
+            pass
+        try:
+            self.find(By.CSS_SELECTOR, '.onboarding-nag')
+            responses = self.find_all(By.CSS_SELECTOR, '.footer .btn')
+            responses[randint(0, len(responses) - 1)].click()
+            self.find(By.CSS_SELECTOR, '.footer.got-it button').click()
+        except:
+            # onboarding nag isn't shown
+            pass
+
+        self.change_wait_time(store_wait)
+
 
 class User(Helper):
     """User parent class."""
@@ -523,9 +552,11 @@ class User(Helper):
             ).click()
         self.wait.until(
             expect.visibility_of_element_located(
-                (By.CSS_SELECTOR, '.user-actions-menu')
+                # (By.CSS_SELECTOR, '.user-actions-menu')
+                (By.CSS_SELECTOR, '.actions-menu')
             )
         ).click()
+
 
     def tutor_logout(self):
         """Tutor logout helper."""
@@ -561,34 +592,34 @@ class User(Helper):
             # Different page, but uses the same logic and link text
             self.find(By.CSS_SELECTOR, '[data-method]').click()
 
-    def is_modal_present(self, by, value):
-        try:
-            self.find(By.CLASS_NAME, 'joyride-tooltip__button--primary')
+    # def is_modal_present(self, by, value):
+    #     try:
+    #         self.find(By.CLASS_NAME, 'joyride-tooltip__button--primary')
 
-        except:
-            return False
-        return True
+    #     except:
+    #         return False
+    #     return True
 
-    def close_beta_windows(self):
-        """Close the beta windows if it shows."""
-        store_wait = self.wait_time
-        self.change_wait_time(1)
-        while self.is_modal_present(By.CLASS_NAME, 'joyride-tooltip__button--primary'):
-            self.find(By.CLASS_NAME, 'joyride-tooltip__button--primary').click()
-        try:
-            self.find(By.XPATH, '//button[span[text()="Submit"]]')
-        except:
-            pass
-        try:
-            self.find(By.CSS_SELECTOR, '.onboarding-nag')
-            responses = self.find_all(By.CSS_SELECTOR, '.footer .btn')
-            responses[randint(0, len(responses) - 1)].click()
-            self.find(By.CSS_SELECTOR, '.footer.got-it button').click()
-        except:
-            # onboarding nag isn't shown
-            pass
+    # def close_beta_windows(self):
+    #     """Close the beta windows if it shows."""
+    #     store_wait = self.wait_time
+    #     self.change_wait_time(1)
+    #     while self.is_modal_present(By.CLASS_NAME, 'joyride-tooltip__button--primary'):
+    #         self.find(By.CLASS_NAME, 'joyride-tooltip__button--primary').click()
+    #     try:
+    #         self.find(By.XPATH, '//button[span[text()="Submit"]]')
+    #     except:
+    #         pass
+    #     try:
+    #         self.find(By.CSS_SELECTOR, '.onboarding-nag')
+    #         responses = self.find_all(By.CSS_SELECTOR, '.footer .btn')
+    #         responses[randint(0, len(responses) - 1)].click()
+    #         self.find(By.CSS_SELECTOR, '.footer.got-it button').click()
+    #     except:
+    #         # onboarding nag isn't shown
+    #         pass
 
-        self.change_wait_time(store_wait)
+    #     self.change_wait_time(store_wait)
 
     def select_course(self, title=None, appearance=None):
         """Select course."""
@@ -877,7 +908,7 @@ class Teacher(User):
         """Return a list of book sections."""
         print('Enter: Get Book Sections')
         print('Retrieve the book section list')
-        self.close_beta_windows()
+        #self.close_beta_windows()
         sleep(1)
         self.goto_calendar()
         # self.page.wait_for_page_load()
@@ -889,6 +920,7 @@ class Teacher(User):
         self.find(By.LINK_TEXT, 'Add Reading').click()
             # )
         # ).click()
+        self.close_beta_windows()
         self.page.wait_for_page_load()
         # selector = self.find(By.ID, 'reading-select')
         # Assignment.scroll_to(self.driver, selector)
@@ -899,9 +931,10 @@ class Teacher(User):
             )
         ).click()
         self.page.wait_for_page_load()
+        self.close_beta_windows()
         print('Open the entire book')
         for chapter in self.find_all(By.CSS_SELECTOR,
-                                     'div.chapter-heading > a'):
+'div.chapter-heading > a'):
             if chapter.get_attribute('aria-expanded') != 'true':
                 Assignment.scroll_to(self.driver, chapter)
                 sleep(0.25)
@@ -1051,14 +1084,48 @@ class Student(User):
         """Go to current work."""
         self.goto_menu_item('Dashboard')
 
-    def work_assignment(self):
+    # def work_assignment(self):
+    #     """Work an assignment."""
+    #     if '/courses/' not in self.current_url():
+    #         self.find(By.XPATH, '//a[contains(@class,"na")]')
+    #     self.wait.until(
+    #         expect.element_to_be_clickable((By.LINK_TEXT, 'All Past Work'))
+    #     )
+    #     raise NotImplementedError(inspect.currentframe().f_code.co_name)
+
+    def work_reading(self, reading):
         """Work an assignment."""
-        if '/courses/' not in self.current_url():
-            self.find(By.XPATH, '//a[contains(@class,"na")]')
+        response = Assignment.rword(20)        
+        # if '/courses/' not in self.current_url():
+        #     self.find(By.XPATH, '//a[contains(@class,"na")]')
+        self.find(By.LINK_TEXT, 'Automation College Sociology with Courseware').click() # for testing
         self.wait.until(
-            expect.element_to_be_clickable((By.LINK_TEXT, 'All Past Work'))
-        )
-        raise NotImplementedError(inspect.currentframe().f_code.co_name)
+            expect.element_to_be_clickable((By.LINK_TEXT, 'THIS WEEK'))
+        ).click()
+        self.find(By.XPATH, '//*[contains(text(), "%s")]' % reading).click()
+        self.page.wait_for_page_load()
+        while len(self.find_all(By.LINK_TEXT, 'Back to Dashboard')) == 0:
+            self.page.wait_for_page_load()
+            try:
+                self.find(By.CSS_SELECTOR, 'svg.right').click()
+            except:
+                pass
+                try:
+                    self.find(By.CSS_SELECTOR, 'textarea').send_keys(response)
+                    self.find(By.XPATH, '//button[contains(text(),"Answer")]').click()
+                except:
+                    try:
+                        self.find(By.XPATH, '//button[contains(text(), "c")]').click()
+                        sleep(1)
+                        self.find(By.XPATH, '//button[contains(text(),"Submit")]').click()
+                        sleep(5)
+                        self.find(By.CSS_SELECTOR, 'svg.right').click()
+                    except:
+                        pass
+        self.find(By.LINK_TEXT, 'Back to Dashboard').click()
+
+
+        # raise NotImplementedError(inspect.currentframe().f_code.co_name)
 
     def goto_past_work(self):
         """View work for previous weeks."""
