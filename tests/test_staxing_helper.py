@@ -1,9 +1,10 @@
 """Staxing test files - Helper."""
 
-import os
 import datetime
 import logging
+import os
 import pytest
+import re
 import time
 import unittest
 
@@ -16,7 +17,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from staxing.assignment import Assignment
 from staxing.helper import Helper, Teacher, Student, Admin, ContentQA, User
 
-__version__ = '0.0.10'
+__version__ = '0.0.11'
 TESTS = os.getenv(
     'CASELIST',
     str([
@@ -780,7 +781,7 @@ class TestStaxingTutorTeacher(unittest.TestCase):
     def test_get_enrollment_code_315(self):
         """No test placeholder."""
         code = self.teacher.get_enrollment_code()
-        assert('enroll' in code and code[-6:].isdigit()), \
+        assert('enroll' in code and re.search('\d{6}', code) is not None), \
             '%s is not the correct enrollment URL' % code
 
     @pytest.mark.skipif(str(316) not in TESTS, reason='Excluded')
