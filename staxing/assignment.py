@@ -12,7 +12,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support import expected_conditions as expect
 from selenium.webdriver.support.ui import WebDriverWait
 
-__version__ = '0.0.36'
+__version__ = '0.0.37'
 
 try:
     from staxing.page_load import SeleniumWait as Page
@@ -689,11 +689,13 @@ class Assignment(object):
                 ac.move_by_offset(-1, 0)
             ac.click()
             ac.perform()
-        wait.until(
-            expect.visibility_of_element_located(
+        _next = wait.until(
+            expect.presence_of_element_located(
                 (By.XPATH, '//*[text()="Next"]')
             )
-        ).click()
+        )
+        Assignment.scroll_to(driver, _next)
+        _next.click()
 
     def add_new_homework(self, driver, title, description, periods, problems,
                          status, feedback, break_point=None):
