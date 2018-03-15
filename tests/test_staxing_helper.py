@@ -24,7 +24,7 @@ TESTS = os.getenv(
         201, 202, 203, 204, 205, 206, 207, 208,
         301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 315, 316,
         # 401,
-        501,
+        501, 502
         # 601,
         # 701,
         # 801,
@@ -445,9 +445,9 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         end_date_1 = self.teacher.date_string(day_delta=right_delta)
         end_date_2 = self.teacher.date_string(day_delta=right_delta + 1)
         if not self.teacher.date_is_valid(right):
-            end_date_1 = (self.class_start_end_dates[1] 
+            end_date_1 = (self.class_start_end_dates[1]
                 - datetime.timedelta(2)).strftime('%m/%d/%Y')
-            end_date_2 = (self.class_start_end_dates[1] 
+            end_date_2 = (self.class_start_end_dates[1]
                 - datetime.timedelta(1)).strftime('%m/%d/%Y')
         print('Left: %s  Right: %s' % (left, right))
         # self.book_sections = self.teacher.get_book_sections()
@@ -503,9 +503,9 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         end_date_2 = self.teacher.date_string(day_delta=right_delta + 1)
         end_date_3 = self.teacher.date_string(day_delta=right_delta + 2)
         if not self.teacher.date_is_valid(right):
-            end_date_1 = (self.class_start_end_dates[1] 
+            end_date_1 = (self.class_start_end_dates[1]
                 - datetime.timedelta(2)).strftime('%m/%d/%Y')
-            end_date_2 = (self.class_start_end_dates[1] 
+            end_date_2 = (self.class_start_end_dates[1]
                 - datetime.timedelta(1)).strftime('%m/%d/%Y')
             end_date_3 = (self.class_start_end_dates[1]).strftime('%m/%d/%Y')
         print('Left: %s  Right: %s' % (left, right))
@@ -555,7 +555,7 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         right = datetime.date.today() + datetime.timedelta(right_delta)
         end_date_1 = self.teacher.date_string(day_delta=right_delta)
         if not self.teacher.date_is_valid(right):
-            end_date_1 = (self.class_start_end_dates[1] 
+            end_date_1 = (self.class_start_end_dates[1]
                 - datetime.timedelta(2)).strftime('%m/%d/%Y')
         print('Left: %s  Right: %s' % (left, right))
         # self.book_sections = self.teacher.get_book_sections()
@@ -601,7 +601,7 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         right = datetime.date.today() + datetime.timedelta(right_delta)
         end_date_1 = self.teacher.date_string(day_delta=right_delta)
         if not self.teacher.date_is_valid(right):
-            end_date_1 = (self.class_start_end_dates[1] 
+            end_date_1 = (self.class_start_end_dates[1]
                 - datetime.timedelta(2)).strftime('%m/%d/%Y')
         print('Left: %s  Right: %s' % (left, right))
         # self.book_sections = self.teacher.get_book_sections()
@@ -650,7 +650,7 @@ class TestStaxingTutorTeacher(unittest.TestCase):
         right = datetime.date.today() + datetime.timedelta(right_delta)
         end_date = self.teacher.date_string(day_delta=right_delta)
         if not self.teacher.date_is_valid(right):
-            end_date = (self.class_start_end_dates[1] 
+            end_date = (self.class_start_end_dates[1]
                 - datetime.timedelta(2)).strftime('%m/%d/%Y')
         self.teacher.add_assignment(
             assignment='reading',
@@ -800,31 +800,103 @@ class TestStaxingTutorTeacher(unittest.TestCase):
 class TestStaxingTutorStudent(unittest.TestCase):
     """Staxing case tests."""
 
+    book_sections = None
+
     def setUp(self):
         """Pretest settings."""
         self.student = Student(use_env_vars=True, driver='chrome')
         self.student.username = os.getenv('STUDENT_USER_MULTI',
                                             self.student.username)
         self.student.set_window_size(height=700, width=1200)
-        self.student.login()
-        
+
+        self.teacher = Teacher(use_env_vars=True, driver='chrome')
+        self.teacher.username = os.getenv('TEACHER_USER_MULTI',
+                                          self.teacher.username)
+        self.teacher.set_window_size(height=700, width=1200)
 
     def tearDown(self):
         """Test destructor."""
         try:
             self.student.delete()
+            self.teacher.delete()
         except:
             pass
 
     @pytest.mark.skipif(str(501) not in TESTS, reason='Excluded')
     def test_work_on_reading_501(self):
-
-        # student get into the course 
-        courses = self.student.get_course_list()
+        # assign a reading
+        self.teacher.login()
+        courses = self.teacher.get_course_list()
         course = courses[randint(0, len(courses) - 1)]
-        self.student.select_course(title=title=course.get_attribute('data-title'))
-        
-        self.student.work_reading("Reading 03") # will change later
+        course_title = course.get_attribute('data-title')
+        self.teacher.select_course(title=course_title)
+        if not self.__class__.book_sections:
+            self.__class__.book_sections = self.teacher.get_book_sections()
+            self.teacher.goto_calendar()
+        self.book_sections = self.__class__.book_sections
+        assignment_title = 'Reading-%s' % Assignment.rword(5)
+        start_date = self.teacher.date_string(day_delta=0)
+        end_date = self.teacher.date_string(day_delta=2)
+        reading_start = randint(0, (len(self.book_sections) - 1))
+        reading_end = reading_start + randint(1, 5)
+        reading_list = self.book_sections[reading_start:reading_end]
+        self.teacher.add_assignment(
+            assignment='reading',
+            args={
+                'title': assignment_title,
+                'description': 'Staxing test reading - all periods - publish',
+                'periods': {
+                    'all': (start_date, end_date)
+                },
+                'reading_list': reading_list,
+                'status': 'publish',
+                'break_point': None,
+            }
+        )
+        self.teacher.logout()
+
+        # student get into the course
+        self.student.login()
+        self.student.select_course(title=course_title)
+        self.student.work_reading(assignment_title)
+
+    @pytest.mark.skipif(str(502) not in TESTS, reason='Excluded')
+    def test_work_on_homework_502(self):
+        self.teacher.login()
+        courses = self.teacher.get_course_list()
+        course = courses[randint(0, len(courses) - 1)]
+        course_title = course.get_attribute('data-title')
+        self.teacher.select_course(title=course_title)
+        if not self.__class__.book_sections:
+            self.__class__.book_sections = self.teacher.get_book_sections()
+            self.teacher.goto_calendar()
+        self.book_sections = self.__class__.book_sections
+        assignment_title = 'Homework-%s' % Assignment.rword(5)
+        start_date = self.teacher.date_string(day_delta=0)
+        end_date = self.teacher.date_string(day_delta=2)
+        homework_start = randint(0, (len(self.book_sections) - 1))
+        homework_end = homework_start + randint(1, 5)
+        reading_list = self.book_sections[homework_start:homework_end]
+        self.teacher.add_assignment(
+            assignment='homework',
+            args={
+                'title': assignment_title,
+                'description': 'Staxing test reading - all periods - publish',
+                'periods': {
+                    'all': (start_date, end_date)
+                },
+                'problems': {'1.1': 1, '2.1':1},
+                'status': 'publish',
+                'break_point': None,
+            }
+        )
+        self.teacher.logout()
+
+        self.student.login()
+        # self.student.select_course('Automation College Sociology with Courseware')
+        # self.student.work_homework('Homework-ihyke')
+        self.student.select_course(title=course_title)
+        self.student.work_homework(assignment_title)
 
     # @pytest.mark.skipif(str(501) not in TESTS, reason='Excluded')
     # def test_base_case_501(self):

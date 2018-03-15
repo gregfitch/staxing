@@ -560,10 +560,12 @@ class User(Helper):
 
     def tutor_logout(self):
         """Tutor logout helper."""
-        self.open_user_menu()
+        #self.open_user_menu()
+        self.find(By.CSS_SELECTOR, '.user-menu').click()
         self.wait.until(
             expect.visibility_of_element_located(
-                (By.CSS_SELECTOR, '.user-actions-menu [type=submit]')
+                # (By.CSS_SELECTOR, '.user-menu [type=submit]')
+                (By.CSS_SELECTOR, '[type="submit"]')
             )
         ).click()
         self.page.wait_for_page_load()
@@ -1095,37 +1097,155 @@ class Student(User):
 
     def work_reading(self, reading):
         """Work an assignment."""
-        response = Assignment.rword(20)        
+        response = Assignment.rword(20)
         # if '/courses/' not in self.current_url():
         #     self.find(By.XPATH, '//a[contains(@class,"na")]')
-        self.find(By.LINK_TEXT, 'Automation College Sociology with Courseware').click() # for testing
         self.wait.until(
-            expect.element_to_be_clickable((By.LINK_TEXT, 'THIS WEEK'))
+            expect.visibility_of_element_located((By.XPATH,
+                '//*[contains(text(), "%s")]' % reading))
         ).click()
-        self.find(By.XPATH, '//*[contains(text(), "%s")]' % reading).click()
+        self.page.wait_for_page_load()
+        while len(self.find_all(By.LINK_TEXT, 'Back to Dashboard')) == 0:
+
+            try:
+                self.change_wait_time(2)
+                self.find(By.CSS_SELECTOR, 'textarea').send_keys(response)
+                self.find(By.XPATH, '//button[contains(text(),"Answer")]').click()
+            # elif len(self.find_all(By.XPATH, '//button[contains(text(), "c")]')) != 0:
+            except:
+                try:
+                    self.change_wait_time(2)
+                    self.find(By.XPATH, '//button[contains(text(), "c")]').click()
+                    self.change_wait_time(5)
+                    self.wait.until(
+                        expect.visibility_of_element_located((By.XPATH,
+                            '//button[contains(text(),"Submit")]'))
+                    ).click()
+                    # self.page.wait_for_page_load()
+                    self.change_wait_time(self.wait_time)
+                    self.wait.until(
+                        expect.visibility_of_element_located((By.CSS_SELECTOR,
+                            'svg.right'))
+                    ).click()
+                except:
+                    self.change_wait_time(2)
+                    self.find(By.CSS_SELECTOR, 'svg.right').click()
+
+            # try:
+            #     self.find(By.CSS_SELECTOR, 'svg.right').click()
+            # except:
+            #     try:
+            #         self.find(By.CSS_SELECTOR, 'textarea').send_keys(response)
+            #         self.find(By.XPATH, '//button[contains(text(),"Answer")]').click()
+            #     except:
+            #         try:
+            #             self.find(By.XPATH, '//button[contains(text(), "c")]').click()
+            #             sleep(1)
+            #             self.find(By.XPATH, '//button[contains(text(),"Submit")]').click()
+            #             sleep(5)
+            #             self.find(By.CSS_SELECTOR, 'svg.right').click()
+            #         except:
+            #             pass
+        self.find(By.LINK_TEXT, 'Back to Dashboard').click()
+        # raise NotImplementedError(inspect.currentframe().f_code.co_name)
+
+    def work_homework(self, homework):
+        """Work an assignment."""
+        response = Assignment.rword(20)
+        # if '/courses/' not in self.current_url():
+        #     self.find(By.XPATH, '//a[contains(@class,"na")]')
+        self.wait.until(
+            expect.visibility_of_element_located((By.XPATH,
+                '//*[contains(text(), "%s")]' % homework))
+        ).click()
         self.page.wait_for_page_load()
         while len(self.find_all(By.LINK_TEXT, 'Back to Dashboard')) == 0:
             self.page.wait_for_page_load()
+            # try:
+            #     self.change_wait_time(2)
+            #     self.find(By.CSS_SELECTOR, 'svg.right').click()
+            # try:
+            #     self.find(By.CSS_SELECTOR, 'textarea').send_keys(response)
+            #     self.find(By.XPATH, '//button[contains(text(),"Answer")]').click()
+            # except:
+            #     try:
+            #         self.find(By.XPATH, '//button[contains(text(), "c")]').click()
+            #         sleep(1)
+            #         self.find(By.XPATH, '//button[contains(text(),"Submit")]').click()
+            #         sleep(5)
+            #         self.find(By.CSS_SELECTOR, 'svg.right').click()
+            #     except:
+            #         pass
             try:
-                self.find(By.CSS_SELECTOR, 'svg.right').click()
+                j = 1
+                while (len(self.find_all(By.XPATH,
+                    '(//button[contains(text(),"Answer")])[%s]' % str(j))) != 0):
+                    self.change_wait_time(5)
+                    self.find(By.XPATH, '(//textarea)[%s]' % str(j)).send_keys(response)
+                    self.wait.until(
+                        expect.visibility_of_element_located((By.XPATH,
+                            '(//button[contains(text(),"Answer")])[%s]'
+                                % str(j)))
+                    ).click()
+                    j = j + 1
+
+                i = 1
+                while (len(self.find_all(By.XPATH,
+                    '//button[contains(text(), "c")][%s]')[i]) != 0):
+                    self.change_wait_time(5)
+                    # btnc = self.wait.until(
+                    #     expect.visibility_of_element_located((By.XPATH,
+                    #     '//button[contains(text(), "c")]'))
+                    # )
+                    btnc = self.find(By.XPATH,
+                        '//button[contains(text(), "c")]')[i]
+                    if btnc.is_enabled() == True:
+                        print("hey")
+                        self.scroll_to(btnc)
+                        btnc.click()
+                    i = i + 1
+                    # btn_summit = self.wait.until(
+                    #     expect.visibility_of_element_located((By.XPATH,
+                    #         '(//button[contains(text(),"Submit")])'))
+                    # )
+                btn_summit_list = self.find_all(By.CSS_SELECTOR,
+                    '//button[contains(text(), "Submit")]')
+                for btn in btn_summit_list:
+                    if btn.is_enabled() == True:
+                        self.scroll_to(btn_summit)
+                        btn.click()
+                # i = i + 1
+                # print("i is " + str(i))
+                    # btn_summit.click()
+                # self.find(By.XPATH, '//button[contains(text(),"Answer")]').click()
+            # elif len(self.find_all(By.XPATH, '//button[contains(text(), "c")]')) != 0:
             except:
-                pass
-                try:
-                    self.find(By.CSS_SELECTOR, 'textarea').send_keys(response)
-                    self.find(By.XPATH, '//button[contains(text(),"Answer")]').click()
-                except:
-                    try:
-                        self.find(By.XPATH, '//button[contains(text(), "c")]').click()
-                        sleep(1)
-                        self.find(By.XPATH, '//button[contains(text(),"Submit")]').click()
-                        sleep(5)
-                        self.find(By.CSS_SELECTOR, 'svg.right').click()
-                    except:
-                        pass
+                # try:
+                    # i = 1
+                    # while (len(self.find_all(By.XPATH,
+                    #     '(//button[contains(text(), "c")])[%s]' % str(i))) != 0):
+                    #     self.change_wait_time(5)
+                    #     btnc = self.find(By.XPATH,
+                    #         '(//button[contains(text(), "c")])[%s]' % str(i))
+                    #     print("btnc is: " + '(//button[contains(text(), "c")])[%s]' % str(i))
+                    #     # Assignment.scroll_to(self.driver, btnc)
+                    #     btnc.click()
+                    #     i = i + 1
+                    #     print("i is " + str(i))
+                    # self.change_wait_time(5)
+                    # self.wait.until(
+                    #     expect.visibility_of_element_located((By.XPATH,
+                    #         '//button[contains(text(),"Submit")]'))
+                    # ).click()
+                # except:
+                self.change_wait_time(3)
+                self.wait.until(
+                    expect.visibility_of_element_located((By.XPATH,
+                        '//button[contains(text(), "Continue")]'))
+                ).click()
+
+
         self.find(By.LINK_TEXT, 'Back to Dashboard').click()
-
-
-        # raise NotImplementedError(inspect.currentframe().f_code.co_name)
 
     def goto_past_work(self):
         """View work for previous weeks."""

@@ -329,7 +329,7 @@ class Assignment(object):
         path += '//div[contains(@class,"react-datepicker__input")]//input'
         date_element = start.find_element(By.XPATH, path)
         # get calendar to correct month
-        
+
         split = date.split('/')
         change = datetime.date(int(split[2]), int(split[0]), int(split[1]))
         time.sleep(0.15)
@@ -414,7 +414,7 @@ class Assignment(object):
             if closes_at:
                 self.assign_time(driver=driver, time=closes_at,
                                  option=options[period], target='due')
-            
+
         if not period_match:
             raise ValueError('No periods matched')
 
@@ -567,7 +567,7 @@ class Assignment(object):
                             '//button[text()="Add Readings"]').click()
         # code to remove train wheel
         time.sleep(2)
-        try: 
+        try:
             driver.find_element(By.CSS_SELECTOR, '.joyride-tooltip__footer button').click()
             driver.find_element(By.XPATH, '//button[text()="Got It"]').click()
         except:
@@ -726,11 +726,16 @@ class Assignment(object):
                 ac.move_by_offset(-1, 0)
             ac.click()
             ac.perform()
-        wait.until(
-            expect.visibility_of_element_located(
-                (By.XPATH, '//*[text()="Next"]')
-            )
-        ).click()
+        time.sleep(5)
+        next = driver.find_element(By.XPATH, '//button[contains(text(),"Next")]')
+        Assignment.scroll_to(driver, next)
+        next.click()
+        # wait.until(
+        #     expect.visibility_of_element_located(
+        #         (By.XPATH, '//button[contains(text(),"Next")]')
+        #         # (By.XPATH, '//*[text()="Next"]')
+        #     )
+        # ).click()
 
     def add_new_homework(self, driver, title, description, periods, problems,
                          status, feedback, break_point=None):
