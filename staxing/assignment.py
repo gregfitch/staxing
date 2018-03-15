@@ -12,8 +12,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support import expected_conditions as expect
 from selenium.webdriver.support.ui import WebDriverWait
 
-
-__version__ = '0.0.36'
+__version__ = '0.0.37'
 
 try:
     from staxing.page_load import SeleniumWait as Page
@@ -46,6 +45,8 @@ class Assignment(object):
     CANCEL = 'cancel'
     DRAFT = 'draft'
     DELETE = 'delete'
+
+    MONTHS = {v: k for k, v in enumerate(calendar.month_name)}
 
     def __init__(self):
         """Provide a switch-style dictionary to add assignments."""
@@ -224,20 +225,15 @@ class Assignment(object):
 
     def open_assignment_menu(self, driver):
         """Open the Add Assignment menu if it is closed."""
-        print('Open the assignment menu')
         assignment_menu = driver.find_element(
             By.CSS_SELECTOR,
             'button'
         )
         Assignment.scroll_to(driver, assignment_menu)
         color = assignment_menu.value_of_css_property('background-color')
-        print('Current menu color: %s' % color.lower())
         if not color.lower() == 'rgba(153, 153, 153, 1)':
             # background isn't gray so the toggle is still closed
             assignment_menu.click()
-            print('Open menu')
-            return
-        print('Menu already open')
 
     def modify_time(self, time):
         """Modify time string for react."""
@@ -247,44 +243,31 @@ class Assignment(object):
         string = str.replace(string, 'm', '')
         return string
 
+    def get_current_month(self, driver):
+        """"""
+        current = driver.find_element(
+            By.CLASS_NAME, 'react-datepicker__current-month')
+        month, year = current.text.split(' ')
+        return (Assignment.MONTHS[month], int(year))
+
     def adjust_date_picker(self, driver, target, new_date):
         """Rotate the date picker to the correct month and year."""
         today = datetime.date.today()
         target.click()
         if today.year == new_date.year and today.month == new_date.month:
             return
-        months = {v: k for k, v in enumerate(calendar.month_name)}
-
         next_month = driver.find_element(
             By.CLASS_NAME,
             'react-datepicker__navigation--next'
         )
-        current = driver.find_element(
-            By.CLASS_NAME,
-            'react-datepicker__current-month'
-        )
-        month, year = current.text.split(' ')
-        month = months[month]
-        year = int(year)
+        month, year = self.get_current_month(driver)
         while year < new_date.year:
             next_month.click()
-            current = driver.find_element(
-                By.CLASS_NAME,
-                'react-datepicker__current-month'
-            )
-            month, year = current.text.split(' ')
-            month = months[month]
-            year = int(year)
+            month, year = self.get_current_month(driver)
             time.sleep(1.0)
         while month < new_date.month:
             next_month.click()
-            current = driver.find_element(
-                By.CLASS_NAME,
-                'react-datepicker__current-month'
-            )
-            month, year = current.text.split(' ')
-            month = months[month]
-            year = int(year)
+            month, year = self.get_current_month(driver)
             time.sleep(1.0)
 
         while year >= new_date.year and month > new_date.month:
@@ -295,13 +278,7 @@ class Assignment(object):
                 'react-datepicker__navigation--previous'
             )
             previous_month.click()
-            current = driver.find_element(
-                By.CLASS_NAME,
-                'react-datepicker__current-month'
-            )
-            month, year = current.text.split(' ')
-            month = months[month]
-            year = int(year)
+            month, year = self.get_current_month(driver)
             time.sleep(1.0)
 
     def assign_time(self, driver, time,
@@ -381,7 +358,6 @@ class Assignment(object):
                 ).text
             ] = period
         period_match = False
-        print ("options!!",options)
         for period in options:
             # activate or deactivate a specific period/section row
             period_match = period_match or period in periods
@@ -447,7 +423,7 @@ class Assignment(object):
                         (By.XPATH, '//button[contains(@class,"ok")]')
                     )
                 ).click()
-            except:
+            except Exception:
                 pass
         elif status == self.DELETE:
             print('Deleting assignment')
@@ -469,6 +445,7 @@ class Assignment(object):
             By.XPATH,
             '//div[@data-chapter-section="%s"]/a' % chapter
         )
+        Assignment.scroll_to(driver, data_chapter)
         if (data_chapter.get_attribute('aria-expanded')).lower() == 'false':
             data_chapter.click()
 
@@ -495,10 +472,10 @@ class Assignment(object):
                 marked = wait.until(
                     expect.visibility_of_element_located((
                         By.XPATH,
-                        ('//span[contains(@data-chapter-section' +
-                         ',"{0}") and text()="{0}"]').format(section) +
-                        '/preceding-sibling::span/input'
-                    ))
+                        ('//span[contains(@data-chapter-section,"{0}") ' +
+                         'and text()="{0}"]').format(section) +
+                        '/preceding-sibling::span/input')
+                    )
                 )
                 if not marked.is_selected():
                     marked.click()
@@ -539,21 +516,19 @@ class Assignment(object):
             return
         print('Enter the description')
         driver.find_element(
-            By.XPATH,
-            '//div[contains(@class,"assignment-description")]//textarea' +
-            '[contains(@class,"form-control")]'). \
-            send_keys(description)
+            By.CSS_SELECTOR, '.assignment-description .form-control') \
+            .send_keys(description)
         if break_point == Assignment.BEFORE_PERIOD:
             print('Break BEFORE_PERIOD')
             return
-        print('Assign periods')
+        print('Assign sections')
         self.assign_periods(driver, periods)
         # add reading sections to the assignment
         print('Set reading section list')
         driver.find_element(By.ID, 'reading-select').click()
         wait.until(
             expect.visibility_of_element_located(
-                (By.XPATH, '//div[contains(@class,"reading-plan")]')
+                (By.CSS_SELECTOR, '.reading-plan')
             )
         )
         if break_point == Assignment.BEFORE_SECTION_SELECT:
@@ -572,9 +547,10 @@ class Assignment(object):
             driver.find_element(By.XPATH, '//button[text()="Got It"]').click()
         except:
             pass
+        # driver.find_element(By.CSS_SELECTOR, '.-show-problems').click()
         wait.until(
             expect.visibility_of_element_located(
-                (By.XPATH, '//button[contains(@class,"-publish")]')
+                (By.CSS_SELECTOR, '.-publish')
             )
         )
         if break_point == Assignment.BEFORE_STATUS_SELECT:
@@ -595,7 +571,7 @@ class Assignment(object):
                 )
             )
             wait.until(expect.staleness_of(loading))
-        except:
+        except Exception:
             pass
         rows = driver.find_elements(
             By.XPATH,
@@ -658,17 +634,14 @@ class Assignment(object):
         driver.find_element(By.ID, 'problems-select').click()
         wait.until(
             expect.visibility_of_element_located(
-                (By.XPATH,
-                 '//div[@class="homework-plan-exercise-select-topics"]')
+                (By.CSS_SELECTOR, 'div.homework-plan-exercise-select-topics')
             )
         )
         self.select_sections(driver, list(problems.keys()))
         driver.execute_script(
-            "window.scrollTo(0, document.body.scrollHeight);"
+            'window.scrollTo(0, document.body.scrollHeight);'
         )
-        driver.find_element(
-            By.XPATH, '//button[contains(@class,"-show-problems")]'
-        ).click()
+        driver.find_element(By.CSS_SELECTOR, 'button.-show-problems').click()
         all_available = self.find_all_questions(driver, problems)
         using = []
         # print('AHP - Selection list: %s' % selections)
@@ -767,7 +740,7 @@ class Assignment(object):
         wait = WebDriverWait(driver, Assignment.WAIT_TIME)
         wait.until(
             expect.visibility_of_element_located(
-                (By.XPATH, '//div[contains(@class,"homework-plan")]')
+                (By.CSS_SELECTOR, '.homework-plan')
             )
         )
         if break_point == Assignment.BEFORE_TITLE:
@@ -776,10 +749,8 @@ class Assignment(object):
         if break_point == Assignment.BEFORE_DESCRIPTION:
             return
         driver.find_element(
-            By.XPATH,
-            '//div[contains(@class,"assignment-description")]' +
-            '//textarea[contains(@class,"form-control")]'). \
-            send_keys(description)
+            By.CSS_SELECTOR, '.assignment-description .form-control') \
+            .send_keys(description)
         if break_point == Assignment.BEFORE_PERIOD:
             return
         self.assign_periods(driver, periods)
@@ -790,10 +761,8 @@ class Assignment(object):
         Assignment.scroll_to(driver, feedback)
         feedback.click()
         if feedback == 'immediate':
-            driver.find_element(
-                By.XPATH,
-                '//option[@value="immediate"]'
-            ).click()
+            driver.find_element(By.XPATH, '//option[@value="immediate"]') \
+                .click()
         else:
             driver.find_element(By.XPATH, '//option[@value="due_at"]').click()
         if break_point == Assignment.BEFORE_STATUS_SELECT:
@@ -830,10 +799,8 @@ class Assignment(object):
         if break_point == Assignment.BEFORE_DESCRIPTION:
             return
         driver.find_element(
-            By.XPATH,
-            '//div[contains(@class,"assignment-description")]//textarea' +
-            '[contains(@class,"form-control")]'). \
-            send_keys(description)
+            By.CSS_SELECTOR, '.assignment-description .form-control') \
+            .send_keys(description)
         if break_point == Assignment.BEFORE_PERIOD:
             return
         self.assign_periods(driver, periods)
@@ -842,7 +809,7 @@ class Assignment(object):
         driver.find_element(By.ID, 'external-url').send_keys(assignment_url)
         wait.until(
             expect.visibility_of_element_located(
-                (By.XPATH, '//button[contains(@class,"-publish")]')
+                (By.CSS_SELECTOR, '.-publish')
             )
         )
         if break_point == Assignment.BEFORE_STATUS_SELECT:
@@ -878,16 +845,14 @@ class Assignment(object):
         if break_point == Assignment.BEFORE_DESCRIPTION:
             return
         driver.find_element(
-            By.XPATH,
-            '//div[contains(@class,"assignment-description")]//textarea' +
-            '[contains(@class,"form-control")]'). \
-            send_keys(description)
+            By.XPATH, '.assignment-description .form-control') \
+            .send_keys(description)
         if break_point == Assignment.BEFORE_PERIOD:
             return
         self.assign_periods(driver, periods)
         wait.until(
             expect.visibility_of_element_located(
-                (By.XPATH, '//button[contains(@class,"-publish")]')
+                (By.CSS_SELECTOR, '.-publish')
             )
         )
         if break_point == Assignment.BEFORE_STATUS_SELECT:
@@ -922,17 +887,10 @@ class Assignment(object):
         """Delete a reading assignment."""
         print('Delete Reading: %s' % title)
         wait = WebDriverWait(driver, Assignment.WAIT_TIME * 4)
-        # wait.until(
-        #     expect.visibility_of_element_located(
-        #         (By.CSS_SELECTOR, '.course-name')
-        #     )
-        # )  # .click()
-
         due_date = ''
         for period in periods:
             _, due_date = periods[period]
             break
-        print('Currently at: %s' % driver.current_url)
         url = driver.current_url.split('/')
         date = due_date.split('/')
         temp = []
@@ -940,11 +898,9 @@ class Assignment(object):
         temp.append(date[0])
         temp.append(date[1])
         date = '-'.join(temp)
-        print('URL segments: %s' % str(url))
         url.append('month')
         url.append(date)
         url = '/'.join(url)
-        print('Rebuit URL: %s' % str(url))
         driver.get(url)
         page = Page(driver, Assignment.WAIT_TIME)
         page.wait_for_page_load()
@@ -956,10 +912,13 @@ class Assignment(object):
         time.sleep(0.3)
 
         try:
-            modal = driver.find_element(By.XPATH, '//div[@class="modal-footer"]/a[2]')
+            modal = driver.find_element(
+                By.XPATH,
+                '//div[@class="modal-footer"]/a[2]'
+            )
             Assignment.scroll_to(driver, modal)
             modal.click()
-        except:
+        except Exception:
             pass
         page.wait_for_page_load()
 
