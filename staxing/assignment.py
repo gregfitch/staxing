@@ -10,9 +10,9 @@ import time
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support import expected_conditions as expect
-from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support.ui import Select, WebDriverWait
 
-__version__ = '0.0.37'
+__version__ = '0.0.38'
 
 try:
     from staxing.page_load import SeleniumWait as Page
@@ -53,8 +53,7 @@ class Assignment(object):
         self.add = {
             Assignment.READING:
             (
-                lambda driver, name, description, periods, reading_list, state,
-                problems, url, feedback:
+                lambda driver, name, description, periods, reading_list, state:
                 self.add_new_reading(
                     driver=driver,
                     title=name,
@@ -65,8 +64,8 @@ class Assignment(object):
             ),
             Assignment.HOMEWORK:
             (
-                lambda driver, name, description, periods, reading_list, state,
-                problems, url, feedback:
+                lambda driver, name, description, periods, problems, state,
+                feedback:
                 self.add_new_homework(
                     driver=driver,
                     title=name,
@@ -78,8 +77,7 @@ class Assignment(object):
             ),
             Assignment.EXTERNAL:
             (
-                lambda driver, name, description, periods, reading_list, state,
-                problems, url, feedback:
+                lambda driver, name, description, periods, state, url:
                 self.add_new_external(
                     driver=driver,
                     title=name,
@@ -90,8 +88,7 @@ class Assignment(object):
             ),
             Assignment.EVENT:
             (
-                lambda driver, name, description, periods, reading_list, state,
-                problems, url, feedback:
+                lambda driver, name, description, periods, state:
                 self.add_new_event(
                     driver=driver,
                     title=name,
@@ -103,9 +100,7 @@ class Assignment(object):
         self.edit = {
             Assignment.READING:
             (
-                lambda driver, name, description='', periods={},
-                reading_list={}, state=Assignment.DRAFT, problems=None,
-                url='', feedback='immediate':
+                lambda driver, name, description, periods, reading_list, state:
                 self.change_reading(
                     driver=driver,
                     title=name,
@@ -116,8 +111,8 @@ class Assignment(object):
             ),
             Assignment.HOMEWORK:
             (
-                lambda driver, name, description, periods, reading_list, state,
-                problems, url, feedback:
+                lambda driver, name, description, periods, problems, state,
+                feedback:
                 self.change_homework(
                     driver=driver,
                     title=name,
@@ -129,8 +124,7 @@ class Assignment(object):
             ),
             Assignment.EXTERNAL:
             (
-                lambda driver, name, description, periods, reading_list, state,
-                problems, url, feedback:
+                lambda driver, name, description, periods, url, state:
                 self.change_external(
                     driver=driver,
                     title=name,
@@ -141,8 +135,7 @@ class Assignment(object):
             ),
             Assignment.EVENT:
             (
-                lambda driver, name, description, periods, reading_list, state,
-                problems, url, feedback:
+                lambda driver, name, description, periods, state:
                 self.change_event(
                     driver=driver,
                     title=name,
@@ -154,8 +147,7 @@ class Assignment(object):
         self.remove = {
             Assignment.READING:
             (
-                lambda driver, name, description, periods, reading_list, state,
-                problems, url, feedback:
+                lambda driver, name, description, periods, reading_list, state:
                 self.delete_reading(
                     driver=driver,
                     title=name,
@@ -166,8 +158,8 @@ class Assignment(object):
             ),
             Assignment.HOMEWORK:
             (
-                lambda driver, name, description, periods, reading_list, state,
-                problems, url, feedback:
+                lambda driver, name, description, periods, problems, state,
+                feedback:
                 self.delete_homework(
                     driver=driver,
                     title=name,
@@ -179,8 +171,7 @@ class Assignment(object):
             ),
             Assignment.EXTERNAL:
             (
-                lambda driver, name, description, periods, reading_list, state,
-                problems, url, feedback:
+                lambda driver, name, description, periods, url, state:
                 self.delete_external(
                     driver=driver,
                     title=name,
@@ -191,8 +182,7 @@ class Assignment(object):
             ),
             Assignment.EVENT:
             (
-                lambda driver, name, description, periods, reading_list, state,
-                problems, url, feedback:
+                lambda driver, name, description, periods, state:
                 self.delete_event(
                     driver=driver,
                     title=name,
@@ -209,10 +199,12 @@ class Assignment(object):
                        for _ in range(length))
 
     @classmethod
-    def scroll_to(cls, driver, element):
+    def scroll_to(cls, driver, element, bottom=False):
         """Execute a scroll until in view javascript."""
-        driver.execute_script('return arguments[0].scrollIntoView();', element)
-        driver.execute_script('window.scrollBy(0, -80);')
+        driver.execute_script(
+            'return arguments[0].scrollIntoView();', element)
+        if not bottom:
+            driver.execute_script('window.scrollBy(0, -80);')
 
     @classmethod
     def send_keys(cls, driver, element, text):
@@ -225,14 +217,10 @@ class Assignment(object):
 
     def open_assignment_menu(self, driver):
         """Open the Add Assignment menu if it is closed."""
-        assignment_menu = driver.find_element(
-            By.CSS_SELECTOR,
-            'button'
-        )
+        assignment_menu = driver.find_element(By.CSS_SELECTOR,
+                                              'button.sidebar-toggle')
         Assignment.scroll_to(driver, assignment_menu)
-        color = assignment_menu.value_of_css_property('background-color')
-        if not color.lower() == 'rgba(153, 153, 153, 1)':
-            # background isn't gray so the toggle is still closed
+        if 'open' not in assignment_menu.get_attribute('class').split():
             assignment_menu.click()
 
     def modify_time(self, time):
@@ -553,14 +541,13 @@ class Assignment(object):
         """Final all available questions."""
         questions = {}
         section = ''
-        wait = WebDriverWait(driver, 5)
         try:
-            loading = wait.until(
-                expect.visibility_of_element_located(
-                    (By.XPATH, '//span[text()="Loading..."]')
+            loading = WebDriverWait(driver, 1.0).until(
+                expect.presence_of_element_located(
+                    (By.CSS_SELECTOR, 'div.loading-screen-animation')
                 )
             )
-            wait.until(expect.staleness_of(loading))
+            WebDriverWait(driver, 25.0).until(expect.staleness_of(loading))
         except Exception:
             pass
         rows = driver.find_elements(
@@ -597,20 +584,16 @@ class Assignment(object):
     def set_tutor_selections(self, driver, problems):
         """Select the number of Tutor selected problems."""
         tutor_picks = driver.find_element(
-            By.XPATH, '//div[@class="tutor-selections"]//h2')
+            By.CSS_SELECTOR, 'div.tutor-selections h2')
         current = int(tutor_picks.text)
         change = int(problems['tutor']) - current
         if change != 0:
-            increase = driver.find_element(
-                By.XPATH,
-                '//div[@class="tutor-selections"]' +
-                '//button[contains(@class,"-move-exercise-down")]'
+            buttons = driver.find_elements(
+                By.CSS_SELECTOR,
+                'div.tutor-selections button'
             )
-            decrease = driver.find_element(
-                By.XPATH,
-                '//div[@class="tutor-selections"]' +
-                '//button[contains(@class,"-move-exercise-up")]'
-            )
+            increase = buttons[1]
+            decrease = buttons[0]
             while change < 0:
                 change += 1
                 increase.click()
@@ -631,8 +614,9 @@ class Assignment(object):
         driver.execute_script(
             'window.scrollTo(0, document.body.scrollHeight);'
         )
-        driver.find_element(By.CSS_SELECTOR, 'button.-show-problems').click()
+        driver.find_element(By.CSS_SELECTOR, 'button.show-problems').click()
         all_available = self.find_all_questions(driver, problems)
+
         using = []
         # print('AHP - Selection list: %s' % selections)
         for section in problems:
@@ -691,7 +675,7 @@ class Assignment(object):
             ac.perform()
         _next = wait.until(
             expect.presence_of_element_located(
-                (By.XPATH, '//*[text()="Next"]')
+                (By.CLASS_NAME, 'review-exercises')
             )
         )
         Assignment.scroll_to(driver, _next)
@@ -733,27 +717,33 @@ class Assignment(object):
         if break_point == Assignment.BEFORE_TITLE:
             return
         driver.find_element(By.ID, 'reading-title').send_keys(title)
+
         if break_point == Assignment.BEFORE_DESCRIPTION:
             return
         driver.find_element(
             By.CSS_SELECTOR, '.assignment-description .form-control') \
             .send_keys(description)
+
         if break_point == Assignment.BEFORE_PERIOD:
             return
         self.assign_periods(driver, periods)
+
         if break_point == Assignment.BEFORE_EXERCISE_SELECT:
             return
         self.add_homework_problems(driver, problems)
-        feedback = driver.find_element(By.ID, 'feedback-select')
-        Assignment.scroll_to(driver, feedback)
-        feedback.click()
+
+        time.sleep(0.5)
+        feedback_select = driver.find_element(By.CSS_SELECTOR,
+                                              '.form-group .form-control')
+        Assignment.scroll_to(driver, feedback_select)
+        feedback_option = Select(feedback_select)
         if feedback == 'immediate':
-            driver.find_element(By.XPATH, '//option[@value="immediate"]') \
-                .click()
+            feedback_option.select_by_value('immediate')
         else:
-            driver.find_element(By.XPATH, '//option[@value="due_at"]').click()
+            feedback_option.select_by_value('due_at')
         if break_point == Assignment.BEFORE_STATUS_SELECT:
             return
+
         self.select_status(driver, status)
 
     def add_new_external(self, driver, title, description, periods,
@@ -819,7 +809,6 @@ class Assignment(object):
         print('Creating a new Event: %s' % title)
         self.open_assignment_menu(driver)
         driver.find_element(By.LINK_TEXT, 'Add Event').click()
-        time.sleep(1)
         wait = WebDriverWait(driver, Assignment.WAIT_TIME * 3)
         wait.until(
             expect.element_to_be_clickable(
@@ -832,7 +821,7 @@ class Assignment(object):
         if break_point == Assignment.BEFORE_DESCRIPTION:
             return
         driver.find_element(
-            By.XPATH, '.assignment-description .form-control') \
+            By.CSS_SELECTOR, '.assignment-description .form-control') \
             .send_keys(description)
         if break_point == Assignment.BEFORE_PERIOD:
             return

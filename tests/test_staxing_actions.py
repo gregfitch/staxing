@@ -28,16 +28,16 @@ class TestStaxingActions(unittest.TestCase):
                 }
             }
         )
-        self.driver = webdriver.Chrome(chrome_options=option_set)
-        self.action_chain = Actions(self.driver)
+        # self.driver = webdriver.Chrome(chrome_options=option_set)
+        # self.action_chain = Actions(self.driver)
 
     def tearDown(self):
         """Test destructor."""
-        try:
+        '''try:
             self.action_chain.__del__()
             self.driver.__del__()
         except Exception:
-            pass
+            pass'''
 
     def test_actions_wait_within_two_percent_accuracy_100(self):
         """Test ActionChain wait time is accurate."""

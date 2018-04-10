@@ -1,7 +1,6 @@
 """Staxing test files - Helper."""
 
 import datetime
-import logging
 import os
 import pytest
 import re
@@ -31,7 +30,6 @@ TESTS = os.getenv(
         801,
     ])
 )
-LOGGER.setLevel(logging.WARNING)
 DRIVER = os.getenv('DRIVER', 'chrome')
 
 
